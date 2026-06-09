@@ -37,6 +37,3 @@ This repository currently contains project planning documentation only. Implemen
 - [Sample data plan](docs/sample-data-plan.md)
 - [Qwen 3 review checklist](docs/qwen-review-checklist.md)
 
-## Current Boundary
-
-No application source code has been generated yet. The next step is to review these docs, then begin Phase 1 implementation only after approval.
