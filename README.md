@@ -93,6 +93,6 @@ See [`.env.example`](.env.example) for all configuration options.
 - [Sample data plan](docs/sample-data-plan.md)
 - [Qwen 3 review checklist](docs/qwen-review-checklist.md)
 
-## Implementation Status
+## Current Boundary
 
-Phase 0 (Planning) ✅ | Phase 1 (Skeleton) ✅ | Phase 2+ 🔲
+No application source code has been generated yet. The next step is to review these docs, then begin Phase 1 implementation only after approval.
