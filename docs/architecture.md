@@ -4,6 +4,8 @@
 
 RegLoop AI is a local/prototype web application with a Next.js frontend, FastAPI backend, relational database, local file storage, and an LLM provider.
 
+![RegLoop AI System Architecture Diagram](file:///C:/Users/Public/Projects/RegLoop%20AI/docs/architecture_diagram.png)
+
 ```mermaid
 flowchart LR
     Analyst[Compliance Analyst] --> UI[Next.js UI]

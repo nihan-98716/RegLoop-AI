@@ -15,10 +15,12 @@ from app.database import get_db
 from app.logging_config import get_logger
 from app.models.workspace import (
     Document,
+    DocumentChunk,
     GapAnalysis,
     Obligation,
     PolicyMapping,
     PolicyPullRequest,
+    ReviewAction,
     Workspace,
 )
 from app.schemas.gap_analysis import GapAnalysisRead
@@ -26,6 +28,7 @@ from app.schemas.mapping import PolicyMappingRead
 from app.schemas.obligations import ObligationRead
 from app.schemas.pull_request import PolicyPullRequestRead
 from app.schemas.workspace import (
+    AuditRecordRead,
     DocumentRead,
     WorkspaceCreate,
     WorkspaceDetailRead,
@@ -364,3 +367,148 @@ async def export_workspace_csv(
         media_type="text/csv",
         headers=headers,
     )
+
+
+@router.get("/{workspace_id}/audit", response_model=list[AuditRecordRead])
+async def get_workspace_audit_log(
+    workspace_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> list[AuditRecordRead]:
+    """Retrieve end-to-end audit log records for the workspace, dynamically aggregated."""
+    workspace = await _get_workspace_or_404(workspace_id, db)
+
+    events: list[AuditRecordRead] = []
+
+    # 1. Documents
+    doc_res = await db.execute(
+        select(Document).where(Document.workspace_id == workspace_id)
+    )
+    documents = list(doc_res.scalars().all())
+    for doc in documents:
+        events.append(
+            AuditRecordRead(
+                workspace_id=workspace_id,
+                event_type="document_uploaded",
+                timestamp=doc.created_at,
+                details=f"Uploaded {doc.document_type} file: '{doc.original_filename}' ({doc.size_bytes} bytes)."
+            )
+        )
+
+    doc_ids = [d.id for d in documents]
+
+    # 2. Ingestion
+    if doc_ids:
+        chunk_res = await db.execute(
+            select(DocumentChunk)
+            .where(DocumentChunk.document_id.in_(doc_ids))
+            .order_by(DocumentChunk.created_at)
+            .limit(1)
+        )
+        first_chunk = chunk_res.scalar_one_or_none()
+        if first_chunk:
+            events.append(
+                AuditRecordRead(
+                    workspace_id=workspace_id,
+                    event_type="ingestion_run",
+                    timestamp=first_chunk.created_at,
+                    details="Document ingestion run completed. Text extracted and policy documents segmented."
+                )
+            )
+
+    # 3. Obligations Extracted
+    obl_res = await db.execute(
+        select(Obligation)
+        .where(Obligation.workspace_id == workspace_id)
+        .order_by(Obligation.created_at)
+    )
+    obligations = list(obl_res.scalars().all())
+    if obligations:
+        events.append(
+            AuditRecordRead(
+                workspace_id=workspace_id,
+                event_type="obligations_extracted",
+                timestamp=obligations[0].created_at,
+                details=f"Extracted {len(obligations)} regulatory obligations from regulation document."
+            )
+        )
+
+    obl_ids = [o.id for o in obligations]
+
+    # 4. Mappings Run
+    if obl_ids:
+        map_res = await db.execute(
+            select(PolicyMapping)
+            .where(PolicyMapping.obligation_id.in_(obl_ids))
+            .order_by(PolicyMapping.created_at)
+            .limit(1)
+        )
+        first_mapping = map_res.scalar_one_or_none()
+        if first_mapping:
+            events.append(
+                AuditRecordRead(
+                    workspace_id=workspace_id,
+                    event_type="mappings_run",
+                    timestamp=first_mapping.created_at,
+                    details="Policy mapping run completed. Mapped regulatory obligations to internal policy candidate sections."
+                )
+            )
+
+    # 5. Gap Analysis Run
+    if obl_ids:
+        gap_res = await db.execute(
+            select(GapAnalysis)
+            .where(GapAnalysis.obligation_id.in_(obl_ids))
+            .order_by(GapAnalysis.created_at)
+            .limit(1)
+        )
+        first_gap = gap_res.scalar_one_or_none()
+        if first_gap:
+            events.append(
+                AuditRecordRead(
+                    workspace_id=workspace_id,
+                    event_type="gap_analysis_run",
+                    timestamp=first_gap.created_at,
+                    details="Gap analysis assessment completed. Computed coverage status and compliance risk levels."
+                )
+            )
+
+    # 6. Policy PRs Generated
+    pr_res = await db.execute(
+        select(PolicyPullRequest)
+        .where(PolicyPullRequest.workspace_id == workspace_id)
+        .order_by(PolicyPullRequest.created_at)
+    )
+    prs = list(pr_res.scalars().all())
+    if prs:
+        events.append(
+            AuditRecordRead(
+                workspace_id=workspace_id,
+                event_type="prs_generated",
+                timestamp=prs[0].created_at,
+                details=f"Policy Pull Requests generated for {len(prs)} identified coverage gaps."
+            )
+        )
+
+    # 7. PR Reviews
+    pr_ids = [pr.id for pr in prs]
+    if pr_ids:
+        rev_res = await db.execute(
+            select(ReviewAction, PolicyPullRequest.title)
+            .join(PolicyPullRequest, ReviewAction.policy_pull_request_id == PolicyPullRequest.id)
+            .where(ReviewAction.policy_pull_request_id.in_(pr_ids))
+            .order_by(ReviewAction.created_at)
+        )
+        review_actions = list(rev_res.all())
+        for action, pr_title in review_actions:
+            events.append(
+                AuditRecordRead(
+                    workspace_id=workspace_id,
+                    event_type="pr_reviewed",
+                    timestamp=action.created_at,
+                    details=f"Review action '{action.action}' submitted by {action.reviewer_label} on PR '{pr_title}'. Comment: '{action.comment or ''}'"
+                )
+            )
+
+    # Sort events by timestamp
+    events.sort(key=lambda e: e.timestamp)
+    return events

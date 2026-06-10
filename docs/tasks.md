@@ -92,26 +92,26 @@
 
 ## Phase 8: Human Review and Audit
 
-- [ ] P0: Implement approve action
-- [ ] P0: Implement reject action
-- [ ] P0: Implement modify action
-- [ ] P0: Implement escalate action
-- [ ] P0: Persist review status
-- [ ] P0: Record reviewer action events
-- [ ] P0: Generate audit records
-- [ ] P0: Display audit trail
-- [ ] P1: Preserve original recommendation after modification
+- [x] P0: Implement approve action
+- [x] P0: Implement reject action
+- [x] P0: Implement modify action
+- [x] P0: Implement escalate action
+- [x] P0: Persist review status
+- [x] P0: Record reviewer action events
+- [x] P0: Generate audit records
+- [x] P0: Display audit trail
+- [x] P1: Preserve original recommendation after modification
 
 ## Phase 9: Export and Demo
 
-- [ ] P0: Export full review package as JSON
-- [ ] P0: Export full review package as CSV
-- [ ] P0: Add sample regulatory PDF
-- [ ] P0: Add sample policy PDFs
-- [ ] P0: Add sample responsibility matrix CSV
-- [ ] P0: Write setup instructions
-- [ ] P0: Add architecture diagram
-- [ ] P1: Write demo video script
+- [x] P0: Export full review package as JSON
+- [x] P0: Export full review package as CSV
+- [x] P0: Add sample regulatory PDF
+- [x] P0: Add sample policy PDFs
+- [x] P0: Add sample responsibility matrix CSV
+- [x] P0: Write setup instructions
+- [x] P0: Add architecture diagram
+- [x] P1: Write demo video script
 
 ## Phase 10: Review Hardening
 

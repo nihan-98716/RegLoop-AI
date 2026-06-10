@@ -147,7 +147,7 @@ def retrieve_candidate_chunks(
 # Main mapping function
 # ---------------------------------------------------------------------------
 
-def map_obligation_to_policy(
+async def map_obligation_to_policy(
     obligation: Obligation,
     policy_chunks: list[DocumentChunk],
     chunk_to_doc_id: dict[str, str],
@@ -159,6 +159,62 @@ def map_obligation_to_policy(
         policy_chunks: All policy document chunks in the workspace.
         chunk_to_doc_id: Maps chunk.id -> document.id for policy documents.
     """
+    from app.config import settings
+    from app.services.llm import call_openai_api
+
+    if settings.openai_api_key and settings.llm_provider == "openai":
+        candidates = retrieve_candidate_chunks(obligation, policy_chunks, top_k=5)
+        if candidates:
+            user_prompt = f"Regulatory Obligation statement to map:\n\"{obligation.statement}\"\n\nCandidate Policy Sections:\n"
+            for index, (chunk, score) in enumerate(candidates):
+                user_prompt += f"--- Candidate ID: {chunk.id} ---\n{chunk.text}\n\n"
+
+            user_prompt += "Evaluate each candidate chunk and decide which is the best match. Remember: if no section is a good match, set is_no_match to true, document_chunk_id to null, and policy_excerpt to null."
+
+            raw_output = await call_openai_api(
+                system_prompt=POLICY_MAPPING_PROMPT,
+                user_prompt=user_prompt,
+                response_json=True,
+                model="gpt-4o",
+            )
+            if raw_output:
+                try:
+                    parsed = MappingOutput.model_validate_json(raw_output)
+
+                    matched_chunk = None
+                    if not parsed.is_no_match and parsed.document_chunk_id:
+                        for c, _ in candidates:
+                            if c.id == parsed.document_chunk_id:
+                                matched_chunk = c
+                                break
+
+                    if matched_chunk:
+                        return ValidatedMapping(
+                            obligation_id=obligation.id,
+                            policy_document_id=chunk_to_doc_id.get(matched_chunk.id),
+                            document_chunk_id=matched_chunk.id,
+                            policy_excerpt=parsed.policy_excerpt or matched_chunk.text[:500],
+                            mapping_rationale=parsed.mapping_rationale,
+                            confidence=parsed.confidence,
+                            is_no_match=False,
+                            model_name="gpt-4o",
+                        )
+                    else:
+                        return ValidatedMapping(
+                            obligation_id=obligation.id,
+                            policy_document_id=None,
+                            document_chunk_id=None,
+                            policy_excerpt=None,
+                            mapping_rationale=parsed.mapping_rationale,
+                            confidence=parsed.confidence,
+                            is_no_match=True,
+                            model_name="gpt-4o",
+                        )
+                except Exception as exc:
+                    import structlog
+                    structlog.get_logger().error("mapping.openai_failed", error=str(exc))
+
+    # Fallback to local rule-based mapping
     candidates = retrieve_candidate_chunks(obligation, policy_chunks)
 
     if not candidates or candidates[0][1] < _MATCH_THRESHOLD:
@@ -227,13 +283,13 @@ def map_obligation_to_policy(
     )
 
 
-def map_all_obligations(
+async def map_all_obligations(
     obligations: list[Obligation],
     policy_chunks: list[DocumentChunk],
     chunk_to_doc_id: dict[str, str],
 ) -> list[ValidatedMapping]:
     """Map every obligation, returning one ValidatedMapping per obligation."""
     return [
-        map_obligation_to_policy(obl, policy_chunks, chunk_to_doc_id)
+        await map_obligation_to_policy(obl, policy_chunks, chunk_to_doc_id)
         for obl in obligations
     ]

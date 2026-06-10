@@ -212,11 +212,51 @@ def _build_citations(
 # Main analysis function
 # ---------------------------------------------------------------------------
 
-def analyse_gap(
+async def analyse_gap(
     obligation: Obligation,
     mapping: PolicyMapping,
 ) -> ValidatedGapAnalysis:
     """Produce a ValidatedGapAnalysis for one obligation/mapping pair."""
+    from app.config import settings
+    from app.services.llm import call_openai_api
+
+    if settings.openai_api_key and settings.llm_provider == "openai":
+        user_prompt = (
+            f"Regulatory Obligation statement:\n\"{obligation.statement}\"\n"
+            f"Source reference: {obligation.source_reference}\n\n"
+        )
+        if mapping.is_no_match or not mapping.policy_excerpt:
+            user_prompt += "Best Matching Policy: [No match found / Gap]\n"
+        else:
+            user_prompt += f"Best Matching Policy Excerpt:\n\"{mapping.policy_excerpt}\"\n"
+            user_prompt += f"Mapping rationale: {mapping.mapping_rationale}\n"
+
+        user_prompt += "\nEvaluate whether the policy excerpt satisfies the obligation. Return the coverage_status, risk_level, reasoning, source_citations, and confidence."
+
+        raw_output = await call_openai_api(
+            system_prompt=GAP_ANALYSIS_PROMPT,
+            user_prompt=user_prompt,
+            response_json=True,
+            model="gpt-4o",
+        )
+        if raw_output:
+            try:
+                parsed = GapAnalysisOutput.model_validate_json(raw_output)
+                return ValidatedGapAnalysis(
+                    obligation_id=obligation.id,
+                    policy_mapping_id=mapping.id,
+                    coverage_status=parsed.coverage_status,
+                    risk_level=parsed.risk_level,
+                    reasoning=parsed.reasoning,
+                    source_citations=parsed.source_citations,
+                    confidence=parsed.confidence,
+                    model_name="gpt-4o",
+                )
+            except Exception as exc:
+                import structlog
+                structlog.get_logger().error("gap_analysis.openai_failed", error=str(exc))
+
+    # Fallback to local rule-based mapping
     coverage, risk, conf = _assess_coverage(mapping)
     risk = _escalate_risk_if_mandatory(obligation.statement, coverage, risk)
     reasoning = _build_reasoning(obligation, mapping, coverage, risk)
@@ -245,8 +285,11 @@ def analyse_gap(
     )
 
 
-def analyse_all_gaps(
+async def analyse_all_gaps(
     obligation_mapping_pairs: list[tuple[Obligation, PolicyMapping]],
 ) -> list[ValidatedGapAnalysis]:
     """Run gap analysis for all obligation/mapping pairs."""
-    return [analyse_gap(obl, mapping) for obl, mapping in obligation_mapping_pairs]
+    return [
+        await analyse_gap(obl, mapping)
+        for obl, mapping in obligation_mapping_pairs
+    ]

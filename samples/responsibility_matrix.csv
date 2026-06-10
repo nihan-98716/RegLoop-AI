@@ -1,0 +1,4 @@
+domain,policy_area,owner_name,owner_role,owner_email,notes
+Monitoring,Compliance Monitoring,Avery Shah,Compliance Manager,avery@example.com,Owns monitoring procedures
+Reporting,Incident Reporting,Jordan Lee,Regulatory Reporting Lead,jordan@example.com,Owns regulator notifications
+Records,Records Retention,Morgan Patel,Audit Lead,morgan@example.com,Owns evidence retention

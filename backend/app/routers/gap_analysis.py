@@ -78,7 +78,7 @@ async def run_gap_analysis(
     )
 
     # Run analysis
-    results = analyse_all_gaps(pairs)
+    results = await analyse_all_gaps(pairs)
     for r in results:
         db.add(
             GapAnalysis(

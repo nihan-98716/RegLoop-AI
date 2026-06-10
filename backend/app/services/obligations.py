@@ -67,16 +67,57 @@ class ValidatedObligation:
     compliance_domain: str | None
 
 
-def extract_obligations_from_chunks(
+async def extract_obligations_from_chunks(
     chunks: list[DocumentChunk],
-    model_name: str = "local-rule-extractor-v1",
+    model_name: str = "gpt-4o",
 ) -> tuple[list[ValidatedObligation], str]:
     """Extract obligations from regulatory chunks and validate the result schema.
 
-    The provider is deterministic for the prototype and tests. The prompt and
-    schema boundary are explicit so a remote LLM can replace this provider later
-    without changing persistence or API contracts.
+    If OpenAI API key is set, makes a remote call. Otherwise, falls back to the local deterministic extractor.
     """
+    from app.config import settings
+    from app.services.llm import call_openai_api
+
+    if settings.openai_api_key and settings.llm_provider == "openai":
+        # Prepare chunks text
+        user_prompt = "Please extract regulatory obligations from the following document chunks:\n\n"
+        for index, chunk in enumerate(chunks):
+            ref = []
+            if chunk.page_number is not None:
+                ref.append(f"page {chunk.page_number}")
+            if chunk.section_label:
+                ref.append(chunk.section_label)
+            ref_str = ", ".join(ref) or f"chunk {index + 1}"
+            user_prompt += f"--- Chunk Ref: {ref_str} ---\n{chunk.text}\n\n"
+
+        user_prompt += "Ensure each obligation statement is clear, captures the specific duty, and uses the exact reference string provided (e.g. 'page 1') for the 'source_reference' field."
+
+        raw_output = await call_openai_api(
+            system_prompt=OBLIGATION_EXTRACTION_PROMPT,
+            user_prompt=user_prompt,
+            response_json=True,
+            model=model_name,
+        )
+        if raw_output:
+            try:
+                parsed = parse_obligation_provider_output(raw_output)
+                validated = [
+                    ValidatedObligation(
+                        statement=item.statement,
+                        source_reference=item.source_reference,
+                        source_excerpt=item.source_excerpt,
+                        confidence=item.confidence,
+                        compliance_domain=item.compliance_domain,
+                    )
+                    for item in parsed.obligations
+                ]
+                return validated, model_name
+            except Exception as exc:
+                import structlog
+                structlog.get_logger().error("obligations.extraction_openai_failed", error=str(exc))
+
+    # Fallback to local rule-based extractor
+    fallback_model = "local-rule-extractor-v1"
     candidates = []
     seen: set[str] = set()
     for chunk in chunks:
@@ -113,7 +154,7 @@ def extract_obligations_from_chunks(
         )
         for item in parsed.obligations
     ]
-    return validated, model_name
+    return validated, fallback_model
 
 
 def validate_obligation_payload(payload: dict) -> ObligationExtractionResult:

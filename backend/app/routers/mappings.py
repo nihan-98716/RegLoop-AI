@@ -81,7 +81,7 @@ async def run_policy_mapping(
     )
 
     # Run mapping
-    validated_mappings = map_all_obligations(obligations, policy_chunks, chunk_to_doc_id)
+    validated_mappings = await map_all_obligations(obligations, policy_chunks, chunk_to_doc_id)
 
     for vm in validated_mappings:
         db.add(

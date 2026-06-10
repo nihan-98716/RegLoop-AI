@@ -37,3 +37,10 @@ class WorkspaceRead(BaseModel):
 class WorkspaceDetailRead(WorkspaceRead):
     documents: list[DocumentRead] = []
     ready_for_analysis: bool = False
+
+
+class AuditRecordRead(BaseModel):
+    workspace_id: str
+    event_type: str
+    timestamp: datetime
+    details: str

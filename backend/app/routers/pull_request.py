@@ -87,7 +87,7 @@ async def run_policy_pull_requests(
         if not obl:
             continue
         mapping = mappings.get(gap.obligation_id)
-        pr_data = generate_pr_for_gap(obl, gap, mapping, owners)
+        pr_data = await generate_pr_for_gap(obl, gap, mapping, owners)
 
         db_pr = PolicyPullRequest(
             workspace_id=workspace_id,

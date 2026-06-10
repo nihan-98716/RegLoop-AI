@@ -35,7 +35,7 @@ async def extract_obligations(
             detail="Run document ingestion before extracting obligations.",
         )
 
-    extracted, model_name = extract_obligations_from_chunks(chunks)
+    extracted, model_name = await extract_obligations_from_chunks(chunks)
     if not extracted:
         raise HTTPException(
             status_code=422,
