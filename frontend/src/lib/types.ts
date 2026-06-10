@@ -112,6 +112,30 @@ export interface MappingRunRead {
   model_name: string;
 }
 
+export interface GapAnalysisRead {
+  id: string;
+  obligation_id: string;
+  policy_mapping_id: string | null;
+  coverage_status: string;
+  risk_level: string;
+  reasoning: string;
+  source_citations: string | null;
+  confidence: number;
+  model_name: string;
+  created_at: string;
+}
+
+export interface GapAnalysisRunRead {
+  workspace_id: string;
+  status: string;
+  obligation_count: number;
+  fully_covered: number;
+  partially_covered: number;
+  not_covered: number;
+  high_risk: number;
+  model_name: string;
+}
+
 export interface ApiError {
   detail: string;
   status: number;

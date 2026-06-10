@@ -6,6 +6,8 @@
 import type {
   DocumentRead,
   DocumentType,
+  GapAnalysisRead,
+  GapAnalysisRunRead,
   IngestionRunRead,
   IngestionStatusRead,
   MappingRunRead,
@@ -128,6 +130,18 @@ export const api = {
     /** GET /workspaces/{id}/mappings */
     listMappings(workspaceId: string): Promise<PolicyMappingRead[]> {
       return request(`/workspaces/${workspaceId}/mappings`);
+    },
+
+    /** POST /workspaces/{id}/gap-analysis/run */
+    runGapAnalysis(workspaceId: string): Promise<GapAnalysisRunRead> {
+      return request(`/workspaces/${workspaceId}/gap-analysis/run`, {
+        method: "POST",
+      });
+    },
+
+    /** GET /workspaces/{id}/gap-analysis */
+    listGapAnalyses(workspaceId: string): Promise<GapAnalysisRead[]> {
+      return request(`/workspaces/${workspaceId}/gap-analysis`);
     },
   },
 } as const;

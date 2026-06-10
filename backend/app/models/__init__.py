@@ -3,6 +3,7 @@
 from app.models.workspace import (  # noqa: F401
     Document,
     DocumentChunk,
+    GapAnalysis,
     Obligation,
     PolicyMapping,
     ResponsibilityOwner,
@@ -16,4 +17,5 @@ __all__ = [
     "ResponsibilityOwner",
     "Obligation",
     "PolicyMapping",
+    "GapAnalysis",
 ]

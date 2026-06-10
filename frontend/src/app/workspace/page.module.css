@@ -408,6 +408,89 @@
   font-style: italic;
 }
 
+/* ── Gap Analysis ───────────────────────────────────────────────────────── */
+.fullyCoveredRow {
+  border-left: 2px solid #22c55e;
+}
+
+.partiallyCoveredRow {
+  border-left: 2px solid #eab308;
+}
+
+.notCoveredRow {
+  border-left: 2px solid #ef4444;
+}
+
+.fullyCoveredBadge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #22c55e;
+  border: 1px solid #14532d;
+  padding: 0.15rem 0.4rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.partiallyCoveredBadge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #eab308;
+  border: 1px solid #713f12;
+  padding: 0.15rem 0.4rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.notCoveredBadge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #ef4444;
+  border: 1px solid #450a0a;
+  padding: 0.15rem 0.4rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.riskBadge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 0.15rem 0.4rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.riskHigh {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid #7f1d1d;
+}
+
+.riskMedium {
+  color: #eab308;
+  background: rgba(234, 179, 8, 0.1);
+  border: 1px solid #713f12;
+}
+
+.riskLow {
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid #14532d;
+}
+
+.citationsBlock {
+  margin: 0.75rem 0 0 0;
+  padding: 0.5rem 0.75rem;
+  background: #0d0d0d;
+  border: 1px solid #1f1f1f;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: #777777;
+}
+
 @media (max-width: 640px) {
   .metricsGrid {
     grid-template-columns: 1fr;

@@ -8,6 +8,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 
+# Forward-declare coverage/risk literals for documentation clarity
+# fully_covered | partially_covered | not_covered
+# high | medium | low
+
 
 class Workspace(Base):
     """A compliance review workspace containing all uploaded documents."""
@@ -206,6 +210,12 @@ class PolicyMapping(Base):
     policy_chunk: Mapped["DocumentChunk | None"] = relationship(
         "DocumentChunk", back_populates="policy_mappings", foreign_keys=[document_chunk_id]
     )
+    gap_analyses: Mapped[list["GapAnalysis"]] = relationship(
+        "GapAnalysis",
+        back_populates="policy_mapping",
+        foreign_keys="GapAnalysis.policy_mapping_id",
+        lazy="select",
+    )
 
 
 class Obligation(Base):
@@ -249,4 +259,50 @@ class Obligation(Base):
         back_populates="obligation",
         cascade="all, delete-orphan",
         lazy="select",
+    )
+    gap_analyses: Mapped[list["GapAnalysis"]] = relationship(
+        "GapAnalysis",
+        back_populates="obligation",
+        cascade="all, delete-orphan",
+        lazy="select",
+    )
+
+
+class GapAnalysis(Base):
+    """Coverage assessment for a single regulatory obligation."""
+
+    __tablename__ = "gap_analyses"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    obligation_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("obligations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    policy_mapping_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("policy_mappings.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    # fully_covered | partially_covered | not_covered
+    coverage_status: Mapped[str] = mapped_column(String(50), nullable=False)
+    # high | medium | low
+    risk_level: Mapped[str] = mapped_column(String(20), nullable=False)
+    reasoning: Mapped[str] = mapped_column(Text, nullable=False)
+    source_citations: Mapped[str | None] = mapped_column(Text, nullable=True)
+    confidence: Mapped[int] = mapped_column(Integer, nullable=False)
+    model_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+
+    obligation: Mapped["Obligation"] = relationship(
+        "Obligation", back_populates="gap_analyses"
+    )
+    policy_mapping: Mapped["PolicyMapping | None"] = relationship(
+        "PolicyMapping", back_populates="gap_analyses", foreign_keys=[policy_mapping_id]
     )

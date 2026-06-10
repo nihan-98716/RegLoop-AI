@@ -72,12 +72,12 @@
 
 ## Phase 6: Gap Analysis
 
-- [ ] P0: Create gap analysis prompt
-- [ ] P0: Persist coverage status
-- [ ] P0: Persist gap reasoning
-- [ ] P0: Persist risk level
-- [ ] P0: Display gap results by obligation
-- [ ] P1: Add deterministic risk fallback rules
+- [x] P0: Create gap analysis prompt
+- [x] P0: Persist coverage status
+- [x] P0: Persist gap reasoning
+- [x] P0: Persist risk level
+- [x] P0: Display gap results by obligation
+- [x] P1: Add deterministic risk fallback rules
 
 ## Phase 7: Policy Pull Requests
 

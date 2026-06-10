@@ -7,6 +7,7 @@ import api from "@/lib/api";
 import type {
   DocumentRead,
   DocumentType,
+  GapAnalysisRead,
   IngestionStatusRead,
   ObligationRead,
   PolicyMappingRead,
@@ -44,6 +45,9 @@ export default function WorkspacePage() {
   const [mappings, setMappings] = useState<PolicyMappingRead[]>([]);
   const [mapping, setMapping] = useState(false);
   const [mappingError, setMappingError] = useState<string | null>(null);
+  const [gapAnalyses, setGapAnalyses] = useState<GapAnalysisRead[]>([]);
+  const [analyzingGaps, setAnalyzingGaps] = useState(false);
+  const [gapAnalysisError, setGapAnalysisError] = useState<string | null>(null);
 
   const regulationRef = useRef<HTMLInputElement>(null);
   const policyRef = useRef<HTMLInputElement>(null);
@@ -69,6 +73,11 @@ export default function WorkspacePage() {
     setMappings(items);
   }, []);
 
+  const loadGapAnalyses = useCallback(async (id: string) => {
+    const items = await api.workspace.listGapAnalyses(id);
+    setGapAnalyses(items);
+  }, []);
+
   // Initialise workspace on mount
   useEffect(() => {
     async function init() {
@@ -79,6 +88,7 @@ export default function WorkspacePage() {
           await loadIngestion(stored);
           await loadObligations(stored);
           await loadMappings(stored);
+          await loadGapAnalyses(stored);
           return;
         } catch {
           localStorage.removeItem(WORKSPACE_KEY);
@@ -90,11 +100,12 @@ export default function WorkspacePage() {
       await loadIngestion(created.id);
       await loadObligations(created.id);
       await loadMappings(created.id);
+      await loadGapAnalyses(created.id);
     }
     init().catch((err) =>
       setInitError(err?.detail ?? "Failed to initialise workspace.")
     );
-  }, [loadWorkspace, loadIngestion, loadObligations, loadMappings]);
+  }, [loadWorkspace, loadIngestion, loadObligations, loadMappings, loadGapAnalyses]);
 
   async function handleUpload(file: File, type: DocumentType) {
     if (!workspace) return;
@@ -106,6 +117,7 @@ export default function WorkspacePage() {
       await loadIngestion(workspace.id);
       await loadObligations(workspace.id);
       await loadMappings(workspace.id);
+      await loadGapAnalyses(workspace.id);
     } catch (err: unknown) {
       setUploadError(errorDetail(err, "Upload failed."));
     } finally {
@@ -123,6 +135,7 @@ export default function WorkspacePage() {
       await loadIngestion(workspace.id);
       await loadObligations(workspace.id);
       await loadMappings(workspace.id);
+      await loadGapAnalyses(workspace.id);
     } catch (err: unknown) {
       setUploadError(errorDetail(err, "Remove failed."));
     } finally {
@@ -139,6 +152,7 @@ export default function WorkspacePage() {
       await loadWorkspace(workspace.id);
       await loadIngestion(workspace.id);
       await loadObligations(workspace.id);
+      await loadGapAnalyses(workspace.id);
     } catch (err: unknown) {
       setIngestionError(errorDetail(err, "Ingestion failed."));
     } finally {
@@ -155,6 +169,7 @@ export default function WorkspacePage() {
       await loadWorkspace(workspace.id);
       await loadObligations(workspace.id);
       await loadMappings(workspace.id);
+      await loadGapAnalyses(workspace.id);
     } catch (err: unknown) {
       setObligationError(errorDetail(err, "Obligation extraction failed."));
     } finally {
@@ -169,10 +184,25 @@ export default function WorkspacePage() {
     try {
       await api.workspace.runMapping(workspace.id);
       await loadMappings(workspace.id);
+      await loadGapAnalyses(workspace.id);
     } catch (err: unknown) {
       setMappingError(errorDetail(err, "Policy mapping failed."));
     } finally {
       setMapping(false);
+    }
+  }
+
+  async function handleRunGapAnalysis() {
+    if (!workspace) return;
+    setGapAnalysisError(null);
+    setAnalyzingGaps(true);
+    try {
+      await api.workspace.runGapAnalysis(workspace.id);
+      await loadGapAnalyses(workspace.id);
+    } catch (err: unknown) {
+      setGapAnalysisError(errorDetail(err, "Gap analysis failed."));
+    } finally {
+      setAnalyzingGaps(false);
     }
   }
 
@@ -564,6 +594,95 @@ export default function WorkspacePage() {
           </div>
         ) : (
           <div className={styles.emptyState}>No mappings run yet</div>
+        )}
+      </section>
+
+      <section className={styles.obligationSection}>
+        <SectionHeader
+          label="Gap Analysis"
+          hint="Assess coverage status and compliance risk for each obligation"
+        />
+        {gapAnalysisError && (
+          <div className={styles.errorBanner} id="gap-analysis-error-banner">
+            <span>{gapAnalysisError}</span>
+            <button
+              className={styles.errorDismiss}
+              onClick={() => setGapAnalysisError(null)}
+              aria-label="Dismiss gap analysis error"
+            >
+              ×
+            </button>
+          </div>
+        )}
+        <div className={styles.actionRow}>
+          <button
+            className="btn btn-primary"
+            disabled={mappings.length === 0 || analyzingGaps}
+            id="btn-run-gap-analysis"
+            title={mappings.length === 0 ? "Run policy mapping before running gap analysis" : undefined}
+            onClick={handleRunGapAnalysis}
+          >
+            {analyzingGaps
+              ? "Analyzing..."
+              : mappings.length > 0
+                ? "Run Gap Analysis"
+                : "Run Gap Analysis — awaiting policy mappings"}
+          </button>
+        </div>
+        {gapAnalyses.length > 0 ? (
+          <div className={styles.obligationTable}>
+            {gapAnalyses.map((g) => {
+              let rowClass = "";
+              let statusBadgeClass = "";
+              let statusText = "";
+              if (g.coverage_status === "fully_covered") {
+                rowClass = styles.fullyCoveredRow;
+                statusBadgeClass = styles.fullyCoveredBadge;
+                statusText = "FULLY COVERED";
+              } else if (g.coverage_status === "partially_covered") {
+                rowClass = styles.partiallyCoveredRow;
+                statusBadgeClass = styles.partiallyCoveredBadge;
+                statusText = "PARTIALLY COVERED";
+              } else {
+                rowClass = styles.notCoveredRow;
+                statusBadgeClass = styles.notCoveredBadge;
+                statusText = "NOT COVERED";
+              }
+
+              let riskBadgeClass = `${styles.riskBadge}`;
+              if (g.risk_level === "high") {
+                riskBadgeClass += ` ${styles.riskHigh}`;
+              } else if (g.risk_level === "medium") {
+                riskBadgeClass += ` ${styles.riskMedium}`;
+              } else {
+                riskBadgeClass += ` ${styles.riskLow}`;
+              }
+
+              return (
+                <div
+                  key={g.id}
+                  className={`${styles.obligationRow} ${rowClass}`}
+                  id={`gap-row-${g.id}`}
+                >
+                  <div className={styles.obligationMeta}>
+                    <span className={statusBadgeClass}>{statusText}</span>
+                    <span className={riskBadgeClass}>{g.risk_level.toUpperCase()} RISK</span>
+                    <span>{g.confidence}% confidence</span>
+                  </div>
+                  <div className={styles.obligationStatement}>
+                    {g.reasoning}
+                  </div>
+                  {g.source_citations && (
+                    <div className={styles.citationsBlock}>
+                      <strong>Citations:</strong> {g.source_citations}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className={styles.emptyState}>No gap analysis run yet</div>
         )}
       </section>
     </main>
