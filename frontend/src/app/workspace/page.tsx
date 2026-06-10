@@ -364,18 +364,41 @@ export default function WorkspacePage() {
     );
   }
 
+  const exportJsonUrl = `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api"}/workspaces/${workspace.id}/export.json`;
+  const exportCsvUrl = `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api"}/workspaces/${workspace.id}/export.csv`;
+
   return (
     <main className={styles.main}>
       <Nav onNew={newWorkspace} />
 
       {/* Header */}
       <div className={styles.pageHeader}>
-        <h1 className={styles.pageTitle}>Upload workspace</h1>
-        <p className={styles.pageMeta}>
-          <code className={styles.wid}>{workspace.id.slice(0, 8)}</code>
-          <span className={styles.sep}>·</span>
-          <span>{workspace.name}</span>
-        </p>
+        <div>
+          <h1 className={styles.pageTitle}>Upload workspace</h1>
+          <p className={styles.pageMeta}>
+            <code className={styles.wid}>{workspace.id.slice(0, 8)}</code>
+            <span className={styles.sep}>·</span>
+            <span>{workspace.name}</span>
+          </p>
+        </div>
+        <div className={styles.headerActions}>
+          <a
+            href={exportJsonUrl}
+            download
+            className="btn btn-ghost"
+            id="btn-export-json"
+          >
+            Export JSON
+          </a>
+          <a
+            href={exportCsvUrl}
+            download
+            className="btn btn-ghost"
+            id="btn-export-csv"
+          >
+            Export CSV
+          </a>
+        </div>
       </div>
 
       {/* Error banner */}

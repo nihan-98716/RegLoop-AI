@@ -114,3 +114,31 @@ async def test_workspace_lifecycle() -> None:
         detail = detail_res.json()
         assert detail["ready_for_analysis"] is False
         assert len(detail["documents"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_workspace_exports() -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        create_res = await client.post("/api/workspaces", json={"name": "Export Test Workspace"})
+        ws_id = create_res.json()["id"]
+
+        # JSON export
+        json_res = await client.get(f"/api/workspaces/{ws_id}/export.json")
+        assert json_res.status_code == 200
+        data = json_res.json()
+        assert "workspace" in data
+        assert data["workspace"]["id"] == ws_id
+        assert "documents" in data
+        assert "obligations" in data
+        assert "policy_mappings" in data
+        assert "gap_analyses" in data
+        assert "policy_pull_requests" in data
+        assert "attachment; filename=" in json_res.headers["content-disposition"]
+
+        # CSV export
+        csv_res = await client.get(f"/api/workspaces/{ws_id}/export.csv")
+        assert csv_res.status_code == 200
+        assert csv_res.headers["content-type"] == "text/csv; charset=utf-8"
+        assert "attachment; filename=" in csv_res.headers["content-disposition"]
+        csv_text = csv_res.text
+        assert "Obligation ID,Obligation Statement" in csv_text
