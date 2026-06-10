@@ -9,7 +9,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import init_db
 from app.logging_config import configure_logging, get_logger
-from app.routers import gap_analysis, health, ingestion, mappings, obligations, workspaces
+from app.routers import (
+    gap_analysis,
+    health,
+    ingestion,
+    mappings,
+    obligations,
+    pull_request,
+    workspaces,
+)
 
 configure_logging(settings.log_level)
 log = get_logger(__name__)
@@ -47,6 +55,7 @@ app.include_router(ingestion.router, prefix="/api")
 app.include_router(obligations.router, prefix="/api")
 app.include_router(mappings.router, prefix="/api")
 app.include_router(gap_analysis.router, prefix="/api")
+app.include_router(pull_request.router, prefix="/api")
 
 
 @app.get("/", include_in_schema=False)

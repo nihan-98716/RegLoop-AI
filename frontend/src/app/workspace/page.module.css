@@ -491,6 +491,255 @@
   color: #777777;
 }
 
+/* ── Policy Pull Requests ────────────────────────────────────────────────── */
+.filterBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  background: #0d0d0d;
+  border: 1px solid #1f1f1f;
+  padding: 0.75rem 1rem;
+  margin-top: 1rem;
+}
+
+.filterGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filterLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #aaaaaa;
+}
+
+.filterSelect {
+  background: #151515;
+  border: 1px solid #333333;
+  color: #ffffff;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8rem;
+  outline: none;
+  cursor: pointer;
+  min-width: 140px;
+}
+
+.filterSelect:focus {
+  border-color: #555555;
+}
+
+.prCard {
+  background: #0d0d0d;
+  border: 1px solid #1f1f1f;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+  border-left: 3px solid #333333;
+}
+
+.prHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.prTitle {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0;
+  color: #ffffff;
+}
+
+.gapDescription {
+  font-size: 0.85rem;
+  color: #aaaaaa;
+  margin: 0 0 0.75rem 0;
+  line-height: 1.5;
+}
+
+.metaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  font-size: 0.75rem;
+  color: #888888;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px dashed #222222;
+}
+
+.diffContainer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+@media (max-width: 768px) {
+  .diffContainer {
+    grid-template-columns: 1fr;
+  }
+}
+
+.diffBlock {
+  background: #070707;
+  border: 1px solid #1c1c1c;
+  padding: 0.75rem;
+}
+
+.diffHeader {
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+  letter-spacing: 0.05em;
+  color: #888888;
+  text-transform: uppercase;
+}
+
+.diffBefore {
+  border-left: 2px solid #552222;
+  background: rgba(85, 34, 34, 0.05);
+}
+
+.diffBefore .diffHeader {
+  color: #ffaaaa;
+}
+
+.diffAfter {
+  border-left: 2px solid #225522;
+  background: rgba(34, 85, 34, 0.05);
+}
+
+.diffAfter .diffHeader {
+  color: #aaffaa;
+}
+
+.diffText {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: #cccccc;
+  white-space: pre-wrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.reviewForm {
+  background: #050505;
+  border: 1px solid #1a1a1a;
+  padding: 1rem;
+  margin-top: 1.25rem;
+}
+
+.reviewFormTitle {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0 0 0.75rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.reviewFields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.reviewInputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex-grow: 1;
+}
+
+.reviewerInput,
+.reviewerCommentInput {
+  background: #111111;
+  border: 1px solid #2a2a2a;
+  color: #ffffff;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8rem;
+  outline: none;
+}
+
+.reviewerInput:focus,
+.reviewerCommentInput:focus {
+  border-color: #444444;
+}
+
+.reviewerTextarea {
+  background: #111111;
+  border: 1px solid #2a2a2a;
+  color: #ffffff;
+  padding: 0.5rem;
+  font-size: 0.8rem;
+  outline: none;
+  min-height: 80px;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.reviewerTextarea:focus {
+  border-color: #444444;
+}
+
+.timeline {
+  border-top: 1px solid #1f1f1f;
+  margin-top: 1rem;
+  padding-top: 1rem;
+}
+
+.timelineTitle {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #888888;
+  margin: 0 0 0.75rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.timelineItem {
+  border-left: 2px solid #2f2f2f;
+  padding-left: 0.75rem;
+  margin-bottom: 0.75rem;
+  position: relative;
+}
+
+.timelineAction {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #ffffff;
+  background: #333333;
+  padding: 0.1rem 0.35rem;
+  margin-right: 0.5rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.timelineMeta {
+  font-size: 0.7rem;
+  color: #666666;
+}
+
+.timelineComment {
+  font-size: 0.75rem;
+  color: #999999;
+  margin: 0.25rem 0 0 0;
+  font-style: italic;
+}
+
+.timelineModifiedText {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.7rem;
+  color: #aaaaaa;
+  background: #0a0a0a;
+  padding: 0.35rem;
+  border: 1px solid #151515;
+  white-space: pre-wrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
 @media (max-width: 640px) {
   .metricsGrid {
     grid-template-columns: 1fr;

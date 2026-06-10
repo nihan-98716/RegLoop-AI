@@ -48,6 +48,12 @@ class Workspace(Base):
         cascade="all, delete-orphan",
         lazy="select",
     )
+    policy_pull_requests: Mapped[list["PolicyPullRequest"]] = relationship(
+        "PolicyPullRequest",
+        back_populates="workspace",
+        cascade="all, delete-orphan",
+        lazy="select",
+    )
 
 
 class Document(Base):
@@ -266,6 +272,12 @@ class Obligation(Base):
         cascade="all, delete-orphan",
         lazy="select",
     )
+    policy_pull_requests: Mapped[list["PolicyPullRequest"]] = relationship(
+        "PolicyPullRequest",
+        back_populates="obligation",
+        cascade="all, delete-orphan",
+        lazy="select",
+    )
 
 
 class GapAnalysis(Base):
@@ -305,4 +317,107 @@ class GapAnalysis(Base):
     )
     policy_mapping: Mapped["PolicyMapping | None"] = relationship(
         "PolicyMapping", back_populates="gap_analyses", foreign_keys=[policy_mapping_id]
+    )
+    policy_pull_requests: Mapped[list["PolicyPullRequest"]] = relationship(
+        "PolicyPullRequest",
+        back_populates="gap_analysis",
+        cascade="all, delete-orphan",
+        lazy="select",
+    )
+
+
+class PolicyPullRequest(Base):
+    """Reviewable AI-generated policy amendment."""
+
+    __tablename__ = "policy_pull_requests"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    workspace_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    obligation_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("obligations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    gap_analysis_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("gap_analyses.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    gap_description: Mapped[str] = mapped_column(Text, nullable=False)
+    proposed_amendment: Mapped[str] = mapped_column(Text, nullable=False)
+    regulatory_citation: Mapped[str | None] = mapped_column(Text, nullable=True)
+    suggested_owner_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("responsibility_owners.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    risk_level: Mapped[str] = mapped_column(String(20), nullable=False)
+    confidence: Mapped[int] = mapped_column(Integer, nullable=False)
+    before_text: Mapped[str] = mapped_column(Text, nullable=False)
+    after_text: Mapped[str] = mapped_column(Text, nullable=False)
+    # pending | approved | rejected | modified | escalated
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="pending")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+
+    workspace: Mapped["Workspace"] = relationship(
+        "Workspace", back_populates="policy_pull_requests"
+    )
+    obligation: Mapped["Obligation"] = relationship(
+        "Obligation", back_populates="policy_pull_requests"
+    )
+    gap_analysis: Mapped["GapAnalysis"] = relationship(
+        "GapAnalysis", back_populates="policy_pull_requests"
+    )
+    suggested_owner: Mapped["ResponsibilityOwner | None"] = relationship(
+        "ResponsibilityOwner"
+    )
+    review_actions: Mapped[list["ReviewAction"]] = relationship(
+        "ReviewAction",
+        back_populates="policy_pull_request",
+        cascade="all, delete-orphan",
+        lazy="select",
+    )
+
+
+class ReviewAction(Base):
+    """Human review action taken on a policy pull request."""
+
+    __tablename__ = "review_actions"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    policy_pull_request_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("policy_pull_requests.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # approve | reject | modify | escalate
+    action: Mapped[str] = mapped_column(String(50), nullable=False)
+    reviewer_label: Mapped[str] = mapped_column(String(255), nullable=False)
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    modified_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+
+    policy_pull_request: Mapped["PolicyPullRequest"] = relationship(
+        "PolicyPullRequest", back_populates="review_actions"
     )

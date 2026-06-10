@@ -11,6 +11,8 @@ import type {
   IngestionStatusRead,
   ObligationRead,
   PolicyMappingRead,
+  PolicyPullRequestRead,
+  ResponsibilityOwnerRead,
   WorkspaceDetailRead,
 } from "@/lib/types";
 
@@ -48,6 +50,21 @@ export default function WorkspacePage() {
   const [gapAnalyses, setGapAnalyses] = useState<GapAnalysisRead[]>([]);
   const [analyzingGaps, setAnalyzingGaps] = useState(false);
   const [gapAnalysisError, setGapAnalysisError] = useState<string | null>(null);
+  const [pullRequests, setPullRequests] = useState<PolicyPullRequestRead[]>([]);
+  const [generatingPrs, setGeneratingPrs] = useState(false);
+  const [prError, setPrError] = useState<string | null>(null);
+
+  // Filters for PR list
+  const [filterStatus, setFilterStatus] = useState<string>("");
+  const [filterOwner, setFilterOwner] = useState<string>("");
+  const [filterRisk, setFilterRisk] = useState<string>("");
+
+  // Review states inline per PR
+  const [reviewComment, setReviewComment] = useState<{ [id: string]: string }>({});
+  const [reviewLabel, setReviewLabel] = useState<{ [id: string]: string }>({});
+  const [reviewModifiedText, setReviewModifiedText] = useState<{ [id: string]: string }>({});
+  const [reviewAction, setReviewAction] = useState<{ [id: string]: string }>({});
+  const [submittingReview, setSubmittingReview] = useState<{ [id: string]: boolean }>({});
 
   const regulationRef = useRef<HTMLInputElement>(null);
   const policyRef = useRef<HTMLInputElement>(null);
@@ -78,6 +95,22 @@ export default function WorkspacePage() {
     setGapAnalyses(items);
   }, []);
 
+  const loadPullRequests = useCallback(async (id: string, filters?: { status?: string; owner_id?: string; risk_level?: string }) => {
+    const items = await api.workspace.listPolicyPullRequests(id, filters);
+    setPullRequests(items);
+  }, []);
+
+  // Reload PRs when filters change
+  useEffect(() => {
+    if (workspace) {
+      loadPullRequests(workspace.id, {
+        status: filterStatus || undefined,
+        owner_id: filterOwner || undefined,
+        risk_level: filterRisk || undefined,
+      }).catch((err) => setPrError(errorDetail(err, "Failed to load pull requests.")));
+    }
+  }, [workspace, filterStatus, filterOwner, filterRisk, loadPullRequests]);
+
   // Initialise workspace on mount
   useEffect(() => {
     async function init() {
@@ -89,6 +122,7 @@ export default function WorkspacePage() {
           await loadObligations(stored);
           await loadMappings(stored);
           await loadGapAnalyses(stored);
+          await loadPullRequests(stored);
           return;
         } catch {
           localStorage.removeItem(WORKSPACE_KEY);
@@ -101,11 +135,12 @@ export default function WorkspacePage() {
       await loadObligations(created.id);
       await loadMappings(created.id);
       await loadGapAnalyses(created.id);
+      await loadPullRequests(created.id);
     }
     init().catch((err) =>
       setInitError(err?.detail ?? "Failed to initialise workspace.")
     );
-  }, [loadWorkspace, loadIngestion, loadObligations, loadMappings, loadGapAnalyses]);
+  }, [loadWorkspace, loadIngestion, loadObligations, loadMappings, loadGapAnalyses, loadPullRequests]);
 
   async function handleUpload(file: File, type: DocumentType) {
     if (!workspace) return;
@@ -118,6 +153,11 @@ export default function WorkspacePage() {
       await loadObligations(workspace.id);
       await loadMappings(workspace.id);
       await loadGapAnalyses(workspace.id);
+      await loadPullRequests(workspace.id, {
+        status: filterStatus || undefined,
+        owner_id: filterOwner || undefined,
+        risk_level: filterRisk || undefined,
+      });
     } catch (err: unknown) {
       setUploadError(errorDetail(err, "Upload failed."));
     } finally {
@@ -136,6 +176,11 @@ export default function WorkspacePage() {
       await loadObligations(workspace.id);
       await loadMappings(workspace.id);
       await loadGapAnalyses(workspace.id);
+      await loadPullRequests(workspace.id, {
+        status: filterStatus || undefined,
+        owner_id: filterOwner || undefined,
+        risk_level: filterRisk || undefined,
+      });
     } catch (err: unknown) {
       setUploadError(errorDetail(err, "Remove failed."));
     } finally {
@@ -153,6 +198,11 @@ export default function WorkspacePage() {
       await loadIngestion(workspace.id);
       await loadObligations(workspace.id);
       await loadGapAnalyses(workspace.id);
+      await loadPullRequests(workspace.id, {
+        status: filterStatus || undefined,
+        owner_id: filterOwner || undefined,
+        risk_level: filterRisk || undefined,
+      });
     } catch (err: unknown) {
       setIngestionError(errorDetail(err, "Ingestion failed."));
     } finally {
@@ -170,6 +220,11 @@ export default function WorkspacePage() {
       await loadObligations(workspace.id);
       await loadMappings(workspace.id);
       await loadGapAnalyses(workspace.id);
+      await loadPullRequests(workspace.id, {
+        status: filterStatus || undefined,
+        owner_id: filterOwner || undefined,
+        risk_level: filterRisk || undefined,
+      });
     } catch (err: unknown) {
       setObligationError(errorDetail(err, "Obligation extraction failed."));
     } finally {
@@ -185,6 +240,11 @@ export default function WorkspacePage() {
       await api.workspace.runMapping(workspace.id);
       await loadMappings(workspace.id);
       await loadGapAnalyses(workspace.id);
+      await loadPullRequests(workspace.id, {
+        status: filterStatus || undefined,
+        owner_id: filterOwner || undefined,
+        risk_level: filterRisk || undefined,
+      });
     } catch (err: unknown) {
       setMappingError(errorDetail(err, "Policy mapping failed."));
     } finally {
@@ -199,10 +259,72 @@ export default function WorkspacePage() {
     try {
       await api.workspace.runGapAnalysis(workspace.id);
       await loadGapAnalyses(workspace.id);
+      await loadPullRequests(workspace.id, {
+        status: filterStatus || undefined,
+        owner_id: filterOwner || undefined,
+        risk_level: filterRisk || undefined,
+      });
     } catch (err: unknown) {
       setGapAnalysisError(errorDetail(err, "Gap analysis failed."));
     } finally {
       setAnalyzingGaps(false);
+    }
+  }
+
+  async function handleRunPolicyPullRequests() {
+    if (!workspace) return;
+    setPrError(null);
+    setGeneratingPrs(true);
+    try {
+      await api.workspace.runPolicyPullRequests(workspace.id);
+      await loadPullRequests(workspace.id, {
+        status: filterStatus || undefined,
+        owner_id: filterOwner || undefined,
+        risk_level: filterRisk || undefined,
+      });
+    } catch (err: unknown) {
+      setPrError(errorDetail(err, "Failed to generate policy pull requests."));
+    } finally {
+      setGeneratingPrs(false);
+    }
+  }
+
+  async function handleSubmitReview(prId: string) {
+    const action = reviewAction[prId] || "approve";
+    const label = reviewLabel[prId] || "Compliance Officer";
+    const comment = reviewComment[prId] || "";
+    const modifiedText = reviewModifiedText[prId] || "";
+
+    if (action === "modify" && !modifiedText.trim()) {
+      alert("Please provide the modified text.");
+      return;
+    }
+
+    setSubmittingReview((prev) => ({ ...prev, [prId]: true }));
+    try {
+      await api.reviewPullRequest(prId, {
+        action,
+        reviewer_label: label,
+        comment: comment || null,
+        modified_text: action === "modify" ? modifiedText : null,
+      });
+      // Clear review fields for this PR
+      setReviewComment((prev) => ({ ...prev, [prId]: "" }));
+      setReviewLabel((prev) => ({ ...prev, [prId]: "" }));
+      setReviewModifiedText((prev) => ({ ...prev, [prId]: "" }));
+      setReviewAction((prev) => ({ ...prev, [prId]: "" }));
+      // Reload pull requests
+      if (workspace) {
+        await loadPullRequests(workspace.id, {
+          status: filterStatus || undefined,
+          owner_id: filterOwner || undefined,
+          risk_level: filterRisk || undefined,
+        });
+      }
+    } catch (err: unknown) {
+      alert(errorDetail(err, "Failed to submit review."));
+    } finally {
+      setSubmittingReview((prev) => ({ ...prev, [prId]: false }));
     }
   }
 
@@ -683,6 +805,254 @@ export default function WorkspacePage() {
           </div>
         ) : (
           <div className={styles.emptyState}>No gap analysis run yet</div>
+        )}
+      </section>
+
+      <section className={styles.obligationSection}>
+        <SectionHeader
+          label="Policy Pull Requests"
+          hint="AI-generated policy amendments and compliance before-and-after reviews"
+        />
+        {prError && (
+          <div className={styles.errorBanner} id="pr-error-banner">
+            <span>{prError}</span>
+            <button
+              className={styles.errorDismiss}
+              onClick={() => setPrError(null)}
+              aria-label="Dismiss PR error"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        {/* PR Control & Filtering Bar */}
+        <div className={styles.filterBar}>
+          <div className={styles.filterGroup}>
+            <label className={styles.filterLabel}>Status:</label>
+            <select
+              className={styles.filterSelect}
+              id="select-filter-status"
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+            >
+              <option value="">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+              <option value="modified">Modified</option>
+              <option value="escalated">Escalated</option>
+            </select>
+          </div>
+
+          <div className={styles.filterGroup}>
+            <label className={styles.filterLabel}>Suggested Owner:</label>
+            <select
+              className={styles.filterSelect}
+              id="select-filter-owner"
+              value={filterOwner}
+              onChange={(e) => setFilterOwner(e.target.value)}
+            >
+              <option value="">All Owners</option>
+              {ingestion?.responsibility_owners.map((owner) => (
+                <option key={owner.id} value={owner.id}>
+                  {owner.owner_name} ({owner.domain})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className={styles.filterGroup}>
+            <label className={styles.filterLabel}>Risk Level:</label>
+            <select
+              className={styles.filterSelect}
+              id="select-filter-risk"
+              value={filterRisk}
+              onChange={(e) => setFilterRisk(e.target.value)}
+            >
+              <option value="">All Risks</option>
+              <option value="high">High Risk</option>
+              <option value="medium">Medium Risk</option>
+              <option value="low">Low Risk</option>
+            </select>
+          </div>
+        </div>
+
+        <div className={styles.actionRow} style={{ marginTop: "1rem" }}>
+          <button
+            className="btn btn-primary"
+            disabled={gapAnalyses.length === 0 || generatingPrs}
+            id="btn-generate-prs"
+            title={gapAnalyses.length === 0 ? "Run gap analysis before generating policy PRs" : undefined}
+            onClick={handleRunPolicyPullRequests}
+          >
+            {generatingPrs
+              ? "Generating..."
+              : gapAnalyses.length > 0
+                ? "Generate Policy PRs"
+                : "Generate Policy PRs — awaiting gap analysis"}
+          </button>
+        </div>
+
+        {pullRequests.length > 0 ? (
+          <div className={styles.obligationTable}>
+            {pullRequests.map((pr) => {
+              let prStatusBadgeClass = styles.matchBadge;
+              if (pr.status === "approved") prStatusBadgeClass = styles.fullyCoveredBadge;
+              else if (pr.status === "rejected" || pr.status === "escalated") prStatusBadgeClass = styles.notCoveredBadge;
+              else if (pr.status === "modified") prStatusBadgeClass = styles.partiallyCoveredBadge;
+
+              let riskBadgeClass = `${styles.riskBadge}`;
+              if (pr.risk_level === "high") {
+                riskBadgeClass += ` ${styles.riskHigh}`;
+              } else if (pr.risk_level === "medium") {
+                riskBadgeClass += ` ${styles.riskMedium}`;
+              } else {
+                riskBadgeClass += ` ${styles.riskLow}`;
+              }
+
+              const selectedAction = reviewAction[pr.id] || "approve";
+
+              return (
+                <div
+                  key={pr.id}
+                  className={styles.prCard}
+                  id={`pr-card-${pr.id}`}
+                >
+                  <div className={styles.prHeader}>
+                    <h3 className={styles.prTitle}>{pr.title}</h3>
+                    <div className={styles.obligationMeta} style={{ margin: 0 }}>
+                      <span className={prStatusBadgeClass}>{pr.status.toUpperCase()}</span>
+                      <span className={riskBadgeClass}>{pr.risk_level.toUpperCase()} RISK</span>
+                      <span>{pr.confidence}% confidence</span>
+                    </div>
+                  </div>
+
+                  <p className={styles.gapDescription}>
+                    <strong>Detected Gap:</strong> {pr.gap_description}
+                  </p>
+
+                  <div className={styles.metaRow}>
+                    {pr.regulatory_citation && (
+                      <span>
+                        <strong>Regulation Citation:</strong> {pr.regulatory_citation}
+                      </span>
+                    )}
+                    {pr.suggested_owner && (
+                      <span>
+                        <strong>Suggested Owner:</strong> {pr.suggested_owner.owner_name} ({pr.suggested_owner.owner_role ?? "Owner"}, {pr.suggested_owner.owner_email})
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Before & After Diff Blocks */}
+                  <div className={styles.diffContainer}>
+                    <div className={`${styles.diffBlock} ${styles.diffBefore}`}>
+                      <h4 className={styles.diffHeader}>Before (Current Policy Excerpt)</h4>
+                      <pre className={styles.diffText}>
+                        {pr.before_text || "[No matching policy excerpt - New Addition]"}
+                      </pre>
+                    </div>
+                    <div className={`${styles.diffBlock} ${styles.diffAfter}`}>
+                      <h4 className={styles.diffHeader}>After (Amended Policy)</h4>
+                      <pre className={styles.diffText}>{pr.after_text}</pre>
+                    </div>
+                  </div>
+
+                  {/* Existing Review Actions Timeline */}
+                  {pr.review_actions && pr.review_actions.length > 0 && (
+                    <div className={styles.timeline}>
+                      <h4 className={styles.timelineTitle}>Review Audit History</h4>
+                      {pr.review_actions.map((act) => (
+                        <div key={act.id} className={styles.timelineItem}>
+                          <span className={styles.timelineAction}>
+                            {act.action.toUpperCase()}
+                          </span>
+                          <span className={styles.timelineMeta}>
+                            by {act.reviewer_label} on {new Date(act.created_at).toLocaleDateString()}
+                          </span>
+                          {act.comment && (
+                            <p className={styles.timelineComment}>
+                              Comment: "{act.comment}"
+                            </p>
+                          )}
+                          {act.modified_text && (
+                            <pre className={styles.timelineModifiedText}>
+                              Modified Text: "{act.modified_text}"
+                            </pre>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Inline Review Action Form */}
+                  <div className={styles.reviewForm} id={`review-form-${pr.id}`}>
+                    <h4 className={styles.reviewFormTitle}>Submit Compliance Review</h4>
+                    <div className={styles.reviewFields}>
+                      <div className={styles.reviewInputGroup}>
+                        <label className={styles.filterLabel}>Action:</label>
+                        <select
+                          className={styles.filterSelect}
+                          value={selectedAction}
+                          onChange={(e) => setReviewAction(prev => ({ ...prev, [pr.id]: e.target.value }))}
+                        >
+                          <option value="approve">Approve</option>
+                          <option value="reject">Reject</option>
+                          <option value="modify">Modify (Edit Text)</option>
+                          <option value="escalate">Escalate</option>
+                        </select>
+                      </div>
+
+                      <div className={styles.reviewInputGroup}>
+                        <label className={styles.filterLabel}>Reviewer Label:</label>
+                        <input
+                          type="text"
+                          className={styles.reviewerInput}
+                          placeholder="Compliance Officer"
+                          value={reviewLabel[pr.id] ?? ""}
+                          onChange={(e) => setReviewLabel(prev => ({ ...prev, [pr.id]: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+
+                    {selectedAction === "modify" && (
+                      <div className={styles.reviewInputGroup} style={{ marginTop: "1rem" }}>
+                        <label className={styles.filterLabel}>Modify Policy Amendment:</label>
+                        <textarea
+                          className={styles.reviewerTextarea}
+                          value={reviewModifiedText[pr.id] ?? pr.after_text}
+                          onChange={(e) => setReviewModifiedText(prev => ({ ...prev, [pr.id]: e.target.value }))}
+                        />
+                      </div>
+                    )}
+
+                    <div className={styles.reviewInputGroup} style={{ marginTop: "1rem" }}>
+                      <label className={styles.filterLabel}>Comment:</label>
+                      <input
+                        type="text"
+                        className={styles.reviewerCommentInput}
+                        placeholder="Add review notes..."
+                        value={reviewComment[pr.id] ?? ""}
+                        onChange={(e) => setReviewComment(prev => ({ ...prev, [pr.id]: e.target.value }))}
+                      />
+                    </div>
+
+                    <button
+                      className="btn btn-ghost"
+                      style={{ marginTop: "1rem" }}
+                      disabled={submittingReview[pr.id]}
+                      onClick={() => handleSubmitReview(pr.id)}
+                    >
+                      {submittingReview[pr.id] ? "Submitting..." : "Submit Review Action"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className={styles.emptyState}>No pull requests generated yet</div>
         )}
       </section>
     </main>

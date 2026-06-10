@@ -6,7 +6,9 @@ from app.models.workspace import (  # noqa: F401
     GapAnalysis,
     Obligation,
     PolicyMapping,
+    PolicyPullRequest,
     ResponsibilityOwner,
+    ReviewAction,
     Workspace,
 )
 
@@ -18,4 +20,6 @@ __all__ = [
     "Obligation",
     "PolicyMapping",
     "GapAnalysis",
+    "PolicyPullRequest",
+    "ReviewAction",
 ]

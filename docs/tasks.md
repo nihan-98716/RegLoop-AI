@@ -81,14 +81,14 @@
 
 ## Phase 7: Policy Pull Requests
 
-- [ ] P0: Generate PRs for partial or missing coverage
-- [ ] P0: Include gap description
-- [ ] P0: Include proposed amendment
-- [ ] P0: Include regulatory citation
-- [ ] P0: Include suggested owner
-- [ ] P0: Include risk and confidence
-- [ ] P0: Include before and after comparison
-- [ ] P1: Allow filtering PRs by status, owner, and risk
+- [x] P0: Generate PRs for partial or missing coverage
+- [x] P0: Include gap description
+- [x] P0: Include proposed amendment
+- [x] P0: Include regulatory citation
+- [x] P0: Include suggested owner
+- [x] P0: Include risk and confidence
+- [x] P0: Include before and after comparison
+- [x] P1: Allow filtering PRs by status, owner, and risk
 
 ## Phase 8: Human Review and Audit
 

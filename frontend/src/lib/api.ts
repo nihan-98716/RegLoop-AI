@@ -14,6 +14,8 @@ import type {
   ObligationExtractionRunRead,
   ObligationRead,
   PolicyMappingRead,
+  PolicyPullRequestRead,
+  PolicyPullRequestRunRead,
   WorkspaceDetailRead,
   WorkspaceRead,
 } from "./types";
@@ -61,6 +63,22 @@ export const api = {
   /** GET /health */
   health(): Promise<{ status: string; database: string }> {
     return request("/health");
+  },
+
+  /** POST /policy-pull-requests/{pr_id}/review */
+  reviewPullRequest(
+    prId: string,
+    review: {
+      action: string;
+      reviewer_label: string;
+      comment?: string | null;
+      modified_text?: string | null;
+    },
+  ): Promise<PolicyPullRequestRead> {
+    return request(`/policy-pull-requests/${prId}/review`, {
+      method: "POST",
+      body: JSON.stringify(review),
+    });
   },
 
   workspace: {
@@ -142,6 +160,27 @@ export const api = {
     /** GET /workspaces/{id}/gap-analysis */
     listGapAnalyses(workspaceId: string): Promise<GapAnalysisRead[]> {
       return request(`/workspaces/${workspaceId}/gap-analysis`);
+    },
+
+    /** POST /workspaces/{id}/policy-pull-requests/run */
+    runPolicyPullRequests(workspaceId: string): Promise<PolicyPullRequestRunRead> {
+      return request(`/workspaces/${workspaceId}/policy-pull-requests/run`, {
+        method: "POST",
+      });
+    },
+
+    /** GET /workspaces/{id}/policy-pull-requests */
+    listPolicyPullRequests(
+      workspaceId: string,
+      params?: { status?: string; owner_id?: string; risk_level?: string },
+    ): Promise<PolicyPullRequestRead[]> {
+      const q = new URLSearchParams();
+      if (params?.status) q.append("status", params.status);
+      if (params?.owner_id) q.append("owner_id", params.owner_id);
+      if (params?.risk_level) q.append("risk_level", params.risk_level);
+      const queryStr = q.toString();
+      const path = `/workspaces/${workspaceId}/policy-pull-requests${queryStr ? `?${queryStr}` : ""}`;
+      return request(path);
     },
   },
 } as const;

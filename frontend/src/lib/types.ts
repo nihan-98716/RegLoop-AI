@@ -136,6 +136,43 @@ export interface GapAnalysisRunRead {
   model_name: string;
 }
 
+export interface ReviewActionRead {
+  id: string;
+  policy_pull_request_id: string;
+  action: string;
+  reviewer_label: string;
+  comment: string | null;
+  modified_text: string | null;
+  created_at: string;
+}
+
+export interface PolicyPullRequestRead {
+  id: string;
+  workspace_id: string;
+  obligation_id: string;
+  gap_analysis_id: string;
+  title: string;
+  gap_description: string;
+  proposed_amendment: string;
+  regulatory_citation: string | null;
+  suggested_owner_id: string | null;
+  risk_level: string;
+  confidence: number;
+  before_text: string;
+  after_text: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  suggested_owner?: ResponsibilityOwnerRead | null;
+  review_actions?: ReviewActionRead[];
+}
+
+export interface PolicyPullRequestRunRead {
+  workspace_id: string;
+  status: string;
+  pr_count: number;
+}
+
 export interface ApiError {
   detail: string;
   status: number;
