@@ -1,0 +1,18 @@
+# ignore Python cache and local env
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+.env
+*.db
+*.db-journal
+storage/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/

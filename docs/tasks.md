@@ -20,14 +20,14 @@
 
 ## Phase 1: Application Skeleton
 
-- [ ] P0: Create frontend Next.js app
-- [ ] P0: Create backend FastAPI app
-- [ ] P0: Add common `.env.example`
-- [ ] P0: Add Docker Compose
-- [ ] P0: Add backend database settings for SQLite and PostgreSQL
-- [ ] P0: Add health endpoint
-- [ ] P1: Add backend structured logging
-- [ ] P1: Add frontend API client helper
+- [x] P0: Create frontend Next.js app
+- [x] P0: Create backend FastAPI app
+- [x] P0: Add common `.env.example`
+- [x] P0: Add Docker Compose
+- [x] P0: Add backend database settings for SQLite and PostgreSQL
+- [x] P0: Add health endpoint
+- [x] P1: Add backend structured logging
+- [x] P1: Add frontend API client helper
 
 ## Phase 2: Upload Workspace
 
