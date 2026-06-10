@@ -12,7 +12,6 @@ import type {
   ObligationRead,
   PolicyMappingRead,
   PolicyPullRequestRead,
-  ResponsibilityOwnerRead,
   WorkspaceDetailRead,
 } from "@/lib/types";
 
@@ -103,6 +102,7 @@ export default function WorkspacePage() {
   // Reload PRs when filters change
   useEffect(() => {
     if (workspace) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       loadPullRequests(workspace.id, {
         status: filterStatus || undefined,
         owner_id: filterOwner || undefined,
@@ -996,12 +996,12 @@ export default function WorkspacePage() {
                           </span>
                           {act.comment && (
                             <p className={styles.timelineComment}>
-                              Comment: "{act.comment}"
+                              Comment: &quot;{act.comment}&quot;
                             </p>
                           )}
                           {act.modified_text && (
                             <pre className={styles.timelineModifiedText}>
-                              Modified Text: "{act.modified_text}"
+                              Modified Text: &quot;{act.modified_text}&quot;
                             </pre>
                           )}
                         </div>

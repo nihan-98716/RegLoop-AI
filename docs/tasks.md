@@ -115,10 +115,10 @@
 
 ## Phase 10: Review Hardening
 
-- [ ] P0: Run unit tests
-- [ ] P0: Run backend integration tests
-- [ ] P0: Run frontend workflow tests
-- [ ] P0: Run export validation tests
-- [ ] P0: Complete requirement traceability matrix
-- [ ] P0: Complete Qwen 3 review checklist
-- [ ] P1: Document known limitations
+- [x] P0: Run unit tests
+- [x] P0: Run backend integration tests
+- [x] P0: Run frontend workflow tests
+- [x] P0: Run export validation tests
+- [x] P0: Complete requirement traceability matrix
+- [x] P0: Complete Qwen 3 review checklist
+- [x] P1: Document known limitations
