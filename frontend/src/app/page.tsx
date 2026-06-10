@@ -66,7 +66,7 @@ export default function HomePage() {
       <nav className={styles.nav}>
         <span className={styles.wordmark}>RegLoop AI</span>
         <div className={styles.navRight}>
-          <span className={styles.tag}>v0.1 · Phase 1</span>
+          <span className={styles.tag}>v1.0 · MVP</span>
           <a
             href="http://localhost:8000/docs"
             target="_blank"
@@ -169,7 +169,7 @@ export default function HomePage() {
       {/* Footer */}
       <footer className={styles.footer}>
         <span>RegLoop AI — single-user prototype</span>
-        <span>Phase 1 complete · no authentication required</span>
+        <span>Closed-Loop MVP · No authentication required</span>
       </footer>
 
     </main>
