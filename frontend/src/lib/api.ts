@@ -1,91 +1,87 @@
 /**
- * RegLoop AI — API client helper.
- *
- * A thin typed wrapper around fetch for all backend API calls.
- * The base URL is read from NEXT_PUBLIC_API_URL (set in .env.local or Docker).
- *
- * Usage:
- *   import { api } from "@/lib/api";
- *   const health = await api.health();
+ * RegLoop AI — typed API client.
+ * Thin fetch wrapper with error handling and multipart upload support.
  */
+
+import type { DocumentRead, DocumentType, WorkspaceDetailRead, WorkspaceRead } from "./types";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// ── Core fetch ────────────────────────────────────────────────────────────────
 
-export interface HealthResponse {
-  status: "ok" | "error";
-  database: "ok" | "error";
-}
-
-export interface ApiError {
-  detail: string;
-  status: number;
-}
-
-// ── Core fetch wrapper ───────────────────────────────────────────────────────
-
-async function request<T>(
-  path: string,
-  options: RequestInit = {}
-): Promise<T> {
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${BASE_URL}${path}`;
-
-  const response = await fetch(url, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers ?? {}),
-    },
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json", ...(options.headers ?? {}) },
     ...options,
   });
-
-  if (!response.ok) {
-    let detail = `HTTP ${response.status}`;
+  if (!res.ok) {
+    let detail = `HTTP ${res.status}`;
     try {
-      const body = await response.json();
+      const body = await res.json();
       detail = body?.detail ?? detail;
-    } catch {
-      // ignore parse errors — keep the HTTP status message
-    }
-    const err: ApiError = { detail, status: response.status };
-    throw err;
+    } catch { /* ignore */ }
+    throw { detail, status: res.status };
   }
-
-  // 204 No Content
-  if (response.status === 204) {
-    return undefined as unknown as T;
-  }
-
-  return response.json() as Promise<T>;
+  if (res.status === 204) return undefined as unknown as T;
+  return res.json() as Promise<T>;
 }
 
-// Multipart / file upload variant (no Content-Type header — browser sets boundary)
-async function upload<T>(path: string, body: FormData): Promise<T> {
+async function uploadForm<T>(path: string, form: FormData): Promise<T> {
   const url = `${BASE_URL}${path}`;
-  const response = await fetch(url, { method: "POST", body });
-
-  if (!response.ok) {
-    let detail = `HTTP ${response.status}`;
+  const res = await fetch(url, { method: "POST", body: form });
+  if (!res.ok) {
+    let detail = `HTTP ${res.status}`;
     try {
-      const b = await response.json();
-      detail = b?.detail ?? detail;
-    } catch {
-      // ignore
-    }
-    const err: ApiError = { detail, status: response.status };
-    throw err;
+      const body = await res.json();
+      detail = body?.detail ?? detail;
+    } catch { /* ignore */ }
+    throw { detail, status: res.status };
   }
-
-  return response.json() as Promise<T>;
+  return res.json() as Promise<T>;
 }
 
-// ── API surface ──────────────────────────────────────────────────────────────
+// ── API surface ───────────────────────────────────────────────────────────────
 
 export const api = {
-  /** GET /health — backend liveness + database check */
-  health(): Promise<HealthResponse> {
-    return request<HealthResponse>("/health");
+  /** GET /health */
+  health(): Promise<{ status: string; database: string }> {
+    return request("/health");
+  },
+
+  workspace: {
+    /** POST /workspaces */
+    create(name?: string): Promise<WorkspaceRead> {
+      return request("/workspaces", {
+        method: "POST",
+        body: JSON.stringify({ name: name ?? null }),
+      });
+    },
+
+    /** GET /workspaces/{id} */
+    get(id: string): Promise<WorkspaceDetailRead> {
+      return request(`/workspaces/${id}`);
+    },
+
+    /** POST /workspaces/{id}/documents */
+    uploadDocument(
+      workspaceId: string,
+      file: File,
+      documentType: DocumentType,
+    ): Promise<DocumentRead> {
+      const form = new FormData();
+      form.append("document_type", documentType);
+      form.append("file", file);
+      return uploadForm(`/workspaces/${workspaceId}/documents`, form);
+    },
+
+    /** DELETE /workspaces/{id}/documents/{docId} */
+    deleteDocument(workspaceId: string, docId: string): Promise<void> {
+      return request(`/workspaces/${workspaceId}/documents/${docId}`, {
+        method: "DELETE",
+      });
+    },
   },
 } as const;
 

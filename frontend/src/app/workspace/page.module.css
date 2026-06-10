@@ -1,0 +1,262 @@
+/* ── Layout ──────────────────────────────────────────────────────────────── */
+.main {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 2rem 6rem;
+  background-color: #000000;
+  color: #e5e5e5;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+/* ── Nav ─────────────────────────────────────────────────────────────────── */
+.nav {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #1a1a1a;
+  margin-bottom: 3rem;
+}
+
+.wordmark {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  text-decoration: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.navRight {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+.pageHeader {
+  margin-bottom: 2.5rem;
+}
+
+.pageTitle {
+  font-size: 1.5rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  margin: 0 0 0.5rem 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.pageMeta {
+  font-size: 0.85rem;
+  color: #888888;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.wid {
+  background: #111111;
+  padding: 0.15rem 0.35rem;
+  border-radius: 3px;
+  border: 1px solid #222222;
+  color: #eeeeee;
+  font-size: 0.8rem;
+}
+
+.sep {
+  color: #333333;
+}
+
+/* ── Sections ────────────────────────────────────────────────────────────── */
+.section {
+  margin-bottom: 2.5rem;
+  border: 1px solid #1a1a1a;
+  background: #050505;
+  padding: 1.5rem;
+}
+
+.sectionHeader {
+  margin-bottom: 1rem;
+}
+
+.sectionLabel {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0 0 0.25rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.sectionHint {
+  font-size: 0.8rem;
+  color: #666666;
+  margin: 0;
+}
+
+/* ── Rows ────────────────────────────────────────────────────────────────── */
+.emptyRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  background: #080808;
+  border: 1px dashed #222222;
+}
+
+.emptyText {
+  font-size: 0.85rem;
+  color: #555555;
+}
+
+.fileRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  background: #080808;
+  border: 1px solid #222222;
+  margin-bottom: 0.5rem;
+}
+
+.fileRow:last-child {
+  margin-bottom: 0;
+}
+
+.fileInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.fileName {
+  font-size: 0.9rem;
+  color: #ffffff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileMeta {
+  font-size: 0.8rem;
+  color: #666666;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.metaSep {
+  color: #333333;
+}
+
+.checksum {
+  font-size: 0.75rem;
+  color: #444444;
+}
+
+.addMoreRow {
+  margin-top: 0.75rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.hiddenInput {
+  display: none;
+}
+
+/* ── Readiness ───────────────────────────────────────────────────────────── */
+.readinessSection {
+  margin-top: 3.5rem;
+  border-top: 1px solid #1a1a1a;
+  padding-top: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.readinessList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.readinessItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  color: #555555;
+  transition: color 0.15s ease;
+}
+
+.readinessItem.met {
+  color: #aaaaaa;
+}
+
+.readinessDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #333333;
+  transition: background-color 0.15s ease;
+}
+
+.readinessItem.met .readinessDot {
+  background-color: #ffffff;
+  box-shadow: 0 0 4px #ffffff;
+}
+
+/* ── Full States & Errors ────────────────────────────────────────────────── */
+.loading {
+  font-size: 0.9rem;
+  color: #888888;
+  padding: 4rem 0;
+  text-align: center;
+}
+
+.errorFull {
+  text-align: center;
+  padding: 5rem 0;
+}
+
+.errorTitle {
+  font-size: 1.1rem;
+  color: #ff5555;
+  margin: 0 0 0.5rem 0;
+}
+
+.errorDetail {
+  font-size: 0.85rem;
+  color: #888888;
+  margin: 0 0 1.5rem 0;
+}
+
+.errorBanner {
+  margin-bottom: 2rem;
+  padding: 1rem 1.25rem;
+  background: #110505;
+  border: 1px solid #441111;
+  color: #ff5555;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.errorDismiss {
+  background: none;
+  border: none;
+  color: #ff5555;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.errorDismiss:hover {
+  color: #ffffff;
+}

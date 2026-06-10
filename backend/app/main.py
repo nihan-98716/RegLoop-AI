@@ -1,4 +1,4 @@
-"""RegLoop AI – FastAPI application entry point."""
+"""RegLoop AI — FastAPI application entry point."""
 
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import init_db
 from app.logging_config import configure_logging, get_logger
-from app.routers import health
+from app.routers import health, workspaces
 
 configure_logging(settings.log_level)
 log = get_logger(__name__)
@@ -17,7 +17,6 @@ log = get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """Application lifespan: initialise DB on startup."""
     log.info("app.startup", env=settings.app_env, db=settings.database_url)
     await init_db()
     yield
@@ -31,9 +30,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# ---------------------------------------------------------------------------
-# CORS – allow local Next.js dev server
-# ---------------------------------------------------------------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -45,13 +41,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ---------------------------------------------------------------------------
-# Routers
-# ---------------------------------------------------------------------------
 app.include_router(health.router, prefix="/api")
+app.include_router(workspaces.router, prefix="/api")
 
 
 @app.get("/", include_in_schema=False)
 async def root() -> dict:
-    """Redirect hint for the API root."""
     return {"message": "RegLoop AI API. See /docs for the OpenAPI UI."}
