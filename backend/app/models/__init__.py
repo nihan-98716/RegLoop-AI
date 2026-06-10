@@ -4,6 +4,7 @@ from app.models.workspace import (  # noqa: F401
     Document,
     DocumentChunk,
     Obligation,
+    PolicyMapping,
     ResponsibilityOwner,
     Workspace,
 )
@@ -14,4 +15,5 @@ __all__ = [
     "DocumentChunk",
     "ResponsibilityOwner",
     "Obligation",
+    "PolicyMapping",
 ]

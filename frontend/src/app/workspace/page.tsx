@@ -9,6 +9,7 @@ import type {
   DocumentType,
   IngestionStatusRead,
   ObligationRead,
+  PolicyMappingRead,
   WorkspaceDetailRead,
 } from "@/lib/types";
 
@@ -40,6 +41,9 @@ export default function WorkspacePage() {
   const [obligations, setObligations] = useState<ObligationRead[]>([]);
   const [extracting, setExtracting] = useState(false);
   const [obligationError, setObligationError] = useState<string | null>(null);
+  const [mappings, setMappings] = useState<PolicyMappingRead[]>([]);
+  const [mapping, setMapping] = useState(false);
+  const [mappingError, setMappingError] = useState<string | null>(null);
 
   const regulationRef = useRef<HTMLInputElement>(null);
   const policyRef = useRef<HTMLInputElement>(null);
@@ -60,6 +64,11 @@ export default function WorkspacePage() {
     setObligations(items);
   }, []);
 
+  const loadMappings = useCallback(async (id: string) => {
+    const items = await api.workspace.listMappings(id);
+    setMappings(items);
+  }, []);
+
   // Initialise workspace on mount
   useEffect(() => {
     async function init() {
@@ -69,6 +78,7 @@ export default function WorkspacePage() {
           await loadWorkspace(stored);
           await loadIngestion(stored);
           await loadObligations(stored);
+          await loadMappings(stored);
           return;
         } catch {
           localStorage.removeItem(WORKSPACE_KEY);
@@ -79,11 +89,12 @@ export default function WorkspacePage() {
       await loadWorkspace(created.id);
       await loadIngestion(created.id);
       await loadObligations(created.id);
+      await loadMappings(created.id);
     }
     init().catch((err) =>
       setInitError(err?.detail ?? "Failed to initialise workspace.")
     );
-  }, [loadWorkspace, loadIngestion, loadObligations]);
+  }, [loadWorkspace, loadIngestion, loadObligations, loadMappings]);
 
   async function handleUpload(file: File, type: DocumentType) {
     if (!workspace) return;
@@ -94,6 +105,7 @@ export default function WorkspacePage() {
       await loadWorkspace(workspace.id);
       await loadIngestion(workspace.id);
       await loadObligations(workspace.id);
+      await loadMappings(workspace.id);
     } catch (err: unknown) {
       setUploadError(errorDetail(err, "Upload failed."));
     } finally {
@@ -110,6 +122,7 @@ export default function WorkspacePage() {
       await loadWorkspace(workspace.id);
       await loadIngestion(workspace.id);
       await loadObligations(workspace.id);
+      await loadMappings(workspace.id);
     } catch (err: unknown) {
       setUploadError(errorDetail(err, "Remove failed."));
     } finally {
@@ -141,10 +154,25 @@ export default function WorkspacePage() {
       await api.workspace.extractObligations(workspace.id);
       await loadWorkspace(workspace.id);
       await loadObligations(workspace.id);
+      await loadMappings(workspace.id);
     } catch (err: unknown) {
       setObligationError(errorDetail(err, "Obligation extraction failed."));
     } finally {
       setExtracting(false);
+    }
+  }
+
+  async function handleRunMapping() {
+    if (!workspace) return;
+    setMappingError(null);
+    setMapping(true);
+    try {
+      await api.workspace.runMapping(workspace.id);
+      await loadMappings(workspace.id);
+    } catch (err: unknown) {
+      setMappingError(errorDetail(err, "Policy mapping failed."));
+    } finally {
+      setMapping(false);
     }
   }
 
@@ -472,6 +500,70 @@ export default function WorkspacePage() {
           </div>
         ) : (
           <div className={styles.emptyState}>No obligations extracted yet</div>
+        )}
+      </section>
+
+      <section className={styles.obligationSection}>
+        <SectionHeader
+          label="Policy Mapping"
+          hint="Each obligation mapped to the best matching policy section"
+        />
+        {mappingError && (
+          <div className={styles.errorBanner} id="mapping-error-banner">
+            <span>{mappingError}</span>
+            <button
+              className={styles.errorDismiss}
+              onClick={() => setMappingError(null)}
+              aria-label="Dismiss mapping error"
+            >
+              ×
+            </button>
+          </div>
+        )}
+        <div className={styles.actionRow}>
+          <button
+            className="btn btn-primary"
+            disabled={obligations.length === 0 || mapping}
+            id="btn-run-mapping"
+            title={obligations.length === 0 ? "Extract obligations before running mapping" : undefined}
+            onClick={handleRunMapping}
+          >
+            {mapping
+              ? "Mapping..."
+              : obligations.length > 0
+                ? "Run Policy Mapping"
+                : "Run Policy Mapping — awaiting obligations"}
+          </button>
+        </div>
+        {mappings.length > 0 ? (
+          <div className={styles.obligationTable}>
+            {mappings.map((m) => (
+              <div
+                key={m.id}
+                className={`${styles.obligationRow} ${m.is_no_match ? styles.noMatchRow : ""}`}
+                id={`mapping-row-${m.id}`}
+              >
+                <div className={styles.obligationMeta}>
+                  {m.is_no_match ? (
+                    <span className={styles.noMatchBadge}>NO MATCH</span>
+                  ) : (
+                    <span className={styles.matchBadge}>MATCHED</span>
+                  )}
+                  <span>{m.confidence}% confidence</span>
+                </div>
+                <div className={styles.obligationStatement}>
+                  {m.mapping_rationale}
+                </div>
+                {m.policy_excerpt && (
+                  <blockquote className={styles.policyExcerpt}>
+                    {m.policy_excerpt}
+                  </blockquote>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className={styles.emptyState}>No mappings run yet</div>
         )}
       </section>
     </main>

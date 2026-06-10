@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -89,6 +89,12 @@ class Document(Base):
         cascade="all, delete-orphan",
         lazy="select",
     )
+    policy_mappings: Mapped[list["PolicyMapping"]] = relationship(
+        "PolicyMapping",
+        back_populates="policy_document",
+        foreign_keys="PolicyMapping.policy_document_id",
+        lazy="select",
+    )
 
 
 class DocumentChunk(Base):
@@ -115,6 +121,12 @@ class DocumentChunk(Base):
 
     document: Mapped["Document"] = relationship(
         "Document", back_populates="chunks"
+    )
+    policy_mappings: Mapped[list["PolicyMapping"]] = relationship(
+        "PolicyMapping",
+        back_populates="policy_chunk",
+        foreign_keys="PolicyMapping.document_chunk_id",
+        lazy="select",
     )
 
 
@@ -144,6 +156,55 @@ class ResponsibilityOwner(Base):
 
     workspace: Mapped["Workspace"] = relationship(
         "Workspace", back_populates="responsibility_owners"
+    )
+
+
+class PolicyMapping(Base):
+    """Maps a single obligation to a matching policy chunk or records a no-match."""
+
+    __tablename__ = "policy_mappings"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    obligation_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("obligations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    policy_document_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("documents.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    document_chunk_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("document_chunks.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    policy_excerpt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    mapping_rationale: Mapped[str] = mapped_column(Text, nullable=False)
+    confidence: Mapped[int] = mapped_column(Integer, nullable=False)
+    is_no_match: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+    model_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+
+    obligation: Mapped["Obligation"] = relationship(
+        "Obligation", back_populates="policy_mappings"
+    )
+    policy_document: Mapped["Document | None"] = relationship(
+        "Document", back_populates="policy_mappings", foreign_keys=[policy_document_id]
+    )
+    policy_chunk: Mapped["DocumentChunk | None"] = relationship(
+        "DocumentChunk", back_populates="policy_mappings", foreign_keys=[document_chunk_id]
     )
 
 
@@ -182,4 +243,10 @@ class Obligation(Base):
     )
     source_document: Mapped["Document"] = relationship(
         "Document", back_populates="obligations"
+    )
+    policy_mappings: Mapped[list["PolicyMapping"]] = relationship(
+        "PolicyMapping",
+        back_populates="obligation",
+        cascade="all, delete-orphan",
+        lazy="select",
     )

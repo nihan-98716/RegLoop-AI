@@ -90,6 +90,28 @@ export interface ObligationExtractionRunRead {
   model_name: string;
 }
 
+export interface PolicyMappingRead {
+  id: string;
+  obligation_id: string;
+  policy_document_id: string | null;
+  document_chunk_id: string | null;
+  policy_excerpt: string | null;
+  mapping_rationale: string;
+  confidence: number;
+  is_no_match: boolean;
+  model_name: string;
+  created_at: string;
+}
+
+export interface MappingRunRead {
+  workspace_id: string;
+  status: string;
+  obligation_count: number;
+  mapping_count: number;
+  no_match_count: number;
+  model_name: string;
+}
+
 export interface ApiError {
   detail: string;
   status: number;

@@ -8,8 +8,10 @@ import type {
   DocumentType,
   IngestionRunRead,
   IngestionStatusRead,
+  MappingRunRead,
   ObligationExtractionRunRead,
   ObligationRead,
+  PolicyMappingRead,
   WorkspaceDetailRead,
   WorkspaceRead,
 } from "./types";
@@ -114,6 +116,18 @@ export const api = {
     /** GET /workspaces/{id}/obligations */
     listObligations(workspaceId: string): Promise<ObligationRead[]> {
       return request(`/workspaces/${workspaceId}/obligations`);
+    },
+
+    /** POST /workspaces/{id}/mappings/run */
+    runMapping(workspaceId: string): Promise<MappingRunRead> {
+      return request(`/workspaces/${workspaceId}/mappings/run`, {
+        method: "POST",
+      });
+    },
+
+    /** GET /workspaces/{id}/mappings */
+    listMappings(workspaceId: string): Promise<PolicyMappingRead[]> {
+      return request(`/workspaces/${workspaceId}/mappings`);
     },
   },
 } as const;

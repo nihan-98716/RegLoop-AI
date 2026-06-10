@@ -63,12 +63,12 @@
 
 ## Phase 5: Policy Mapping
 
-- [ ] P0: Retrieve candidate policy chunks for each obligation
-- [ ] P0: Create policy mapping prompt
-- [ ] P0: Persist mapping results
-- [ ] P0: Display mapped policy sections and excerpts
-- [ ] P0: Show mapping confidence
-- [ ] P1: Clearly flag no-match or low-confidence mappings
+- [x] P0: Retrieve candidate policy chunks for each obligation
+- [x] P0: Create policy mapping prompt
+- [x] P0: Persist mapping results
+- [x] P0: Display mapped policy sections and excerpts
+- [x] P0: Show mapping confidence
+- [x] P1: Clearly flag no-match or low-confidence mappings
 
 ## Phase 6: Gap Analysis
 
