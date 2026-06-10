@@ -70,6 +70,26 @@ export interface IngestionStatusRead {
   responsibility_owners: ResponsibilityOwnerRead[];
 }
 
+export interface ObligationRead {
+  id: string;
+  workspace_id: string;
+  statement: string;
+  source_document_id: string;
+  source_reference: string;
+  source_excerpt: string;
+  compliance_domain: string | null;
+  confidence: number;
+  model_name: string;
+  created_at: string;
+}
+
+export interface ObligationExtractionRunRead {
+  workspace_id: string;
+  status: string;
+  obligation_count: number;
+  model_name: string;
+}
+
 export interface ApiError {
   detail: string;
   status: number;

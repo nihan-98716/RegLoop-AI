@@ -38,6 +38,12 @@ class Workspace(Base):
         cascade="all, delete-orphan",
         lazy="select",
     )
+    obligations: Mapped[list["Obligation"]] = relationship(
+        "Obligation",
+        back_populates="workspace",
+        cascade="all, delete-orphan",
+        lazy="select",
+    )
 
 
 class Document(Base):
@@ -74,6 +80,12 @@ class Document(Base):
     chunks: Mapped[list["DocumentChunk"]] = relationship(
         "DocumentChunk",
         back_populates="document",
+        cascade="all, delete-orphan",
+        lazy="select",
+    )
+    obligations: Mapped[list["Obligation"]] = relationship(
+        "Obligation",
+        back_populates="source_document",
         cascade="all, delete-orphan",
         lazy="select",
     )
@@ -132,4 +144,42 @@ class ResponsibilityOwner(Base):
 
     workspace: Mapped["Workspace"] = relationship(
         "Workspace", back_populates="responsibility_owners"
+    )
+
+
+class Obligation(Base):
+    """Structured regulatory obligation extracted from the regulation."""
+
+    __tablename__ = "obligations"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    workspace_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    statement: Mapped[str] = mapped_column(Text, nullable=False)
+    source_document_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("documents.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    source_reference: Mapped[str] = mapped_column(String(255), nullable=False)
+    source_excerpt: Mapped[str] = mapped_column(Text, nullable=False)
+    compliance_domain: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    confidence: Mapped[int] = mapped_column(Integer, nullable=False)
+    model_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+
+    workspace: Mapped["Workspace"] = relationship(
+        "Workspace", back_populates="obligations"
+    )
+    source_document: Mapped["Document"] = relationship(
+        "Document", back_populates="obligations"
     )

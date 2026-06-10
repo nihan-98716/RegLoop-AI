@@ -8,6 +8,7 @@ import type {
   DocumentRead,
   DocumentType,
   IngestionStatusRead,
+  ObligationRead,
   WorkspaceDetailRead,
 } from "@/lib/types";
 
@@ -36,6 +37,9 @@ export default function WorkspacePage() {
   const [ingestion, setIngestion] = useState<IngestionStatusRead | null>(null);
   const [ingesting, setIngesting] = useState(false);
   const [ingestionError, setIngestionError] = useState<string | null>(null);
+  const [obligations, setObligations] = useState<ObligationRead[]>([]);
+  const [extracting, setExtracting] = useState(false);
+  const [obligationError, setObligationError] = useState<string | null>(null);
 
   const regulationRef = useRef<HTMLInputElement>(null);
   const policyRef = useRef<HTMLInputElement>(null);
@@ -51,6 +55,11 @@ export default function WorkspacePage() {
     setIngestion(status);
   }, []);
 
+  const loadObligations = useCallback(async (id: string) => {
+    const items = await api.workspace.listObligations(id);
+    setObligations(items);
+  }, []);
+
   // Initialise workspace on mount
   useEffect(() => {
     async function init() {
@@ -59,6 +68,7 @@ export default function WorkspacePage() {
         try {
           await loadWorkspace(stored);
           await loadIngestion(stored);
+          await loadObligations(stored);
           return;
         } catch {
           localStorage.removeItem(WORKSPACE_KEY);
@@ -68,11 +78,12 @@ export default function WorkspacePage() {
       localStorage.setItem(WORKSPACE_KEY, created.id);
       await loadWorkspace(created.id);
       await loadIngestion(created.id);
+      await loadObligations(created.id);
     }
     init().catch((err) =>
       setInitError(err?.detail ?? "Failed to initialise workspace.")
     );
-  }, [loadWorkspace, loadIngestion]);
+  }, [loadWorkspace, loadIngestion, loadObligations]);
 
   async function handleUpload(file: File, type: DocumentType) {
     if (!workspace) return;
@@ -82,6 +93,7 @@ export default function WorkspacePage() {
       await api.workspace.uploadDocument(workspace.id, file, type);
       await loadWorkspace(workspace.id);
       await loadIngestion(workspace.id);
+      await loadObligations(workspace.id);
     } catch (err: unknown) {
       setUploadError(errorDetail(err, "Upload failed."));
     } finally {
@@ -97,6 +109,7 @@ export default function WorkspacePage() {
       await api.workspace.deleteDocument(workspace.id, docId);
       await loadWorkspace(workspace.id);
       await loadIngestion(workspace.id);
+      await loadObligations(workspace.id);
     } catch (err: unknown) {
       setUploadError(errorDetail(err, "Remove failed."));
     } finally {
@@ -112,10 +125,26 @@ export default function WorkspacePage() {
       await api.workspace.runIngestion(workspace.id);
       await loadWorkspace(workspace.id);
       await loadIngestion(workspace.id);
+      await loadObligations(workspace.id);
     } catch (err: unknown) {
       setIngestionError(errorDetail(err, "Ingestion failed."));
     } finally {
       setIngesting(false);
+    }
+  }
+
+  async function handleExtractObligations() {
+    if (!workspace) return;
+    setObligationError(null);
+    setExtracting(true);
+    try {
+      await api.workspace.extractObligations(workspace.id);
+      await loadWorkspace(workspace.id);
+      await loadObligations(workspace.id);
+    } catch (err: unknown) {
+      setObligationError(errorDetail(err, "Obligation extraction failed."));
+    } finally {
+      setExtracting(false);
     }
   }
 
@@ -190,6 +219,19 @@ export default function WorkspacePage() {
             className={styles.errorDismiss}
             onClick={() => setIngestionError(null)}
             aria-label="Dismiss ingestion error"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {obligationError && (
+        <div className={styles.errorBanner} id="obligation-error-banner">
+          <span>{obligationError}</span>
+          <button
+            className={styles.errorDismiss}
+            onClick={() => setObligationError(null)}
+            aria-label="Dismiss obligation error"
           >
             ×
           </button>
@@ -388,6 +430,48 @@ export default function WorkspacePage() {
               </div>
             ))}
           </div>
+        )}
+      </section>
+
+      <section className={styles.obligationSection}>
+        <SectionHeader
+          label="Obligations"
+          hint="Structured regulatory obligations with source references and confidence"
+        />
+        <div className={styles.actionRow}>
+          <button
+            className="btn btn-primary"
+            disabled={!ingestion?.chunks.length || extracting}
+            id="btn-extract-obligations"
+            title={
+              ingestion?.chunks.length
+                ? undefined
+                : "Run ingestion before extracting obligations"
+            }
+            onClick={handleExtractObligations}
+          >
+            {extracting
+              ? "Extracting..."
+              : ingestion?.chunks.length
+                ? "Extract Obligations"
+                : "Extract Obligations — awaiting ingestion"}
+          </button>
+        </div>
+        {obligations.length > 0 ? (
+          <div className={styles.obligationTable}>
+            {obligations.map((item) => (
+              <div className={styles.obligationRow} key={item.id}>
+                <div className={styles.obligationStatement}>{item.statement}</div>
+                <div className={styles.obligationMeta}>
+                  <span>{item.source_reference}</span>
+                  <span>{item.confidence}% confidence</span>
+                  {item.compliance_domain && <span>{item.compliance_domain}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className={styles.emptyState}>No obligations extracted yet</div>
         )}
       </section>
     </main>

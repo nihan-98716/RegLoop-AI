@@ -53,13 +53,13 @@
 
 ## Phase 4: Obligation Extraction
 
-- [ ] P0: Create obligation extraction prompt
-- [ ] P0: Define obligation output schema
-- [ ] P0: Validate LLM output against schema
-- [ ] P0: Persist obligations
-- [ ] P0: Display obligations table
-- [ ] P0: Show citation and confidence per obligation
-- [ ] P1: Add retry or repair path for malformed model output
+- [x] P0: Create obligation extraction prompt
+- [x] P0: Define obligation output schema
+- [x] P0: Validate LLM output against schema
+- [x] P0: Persist obligations
+- [x] P0: Display obligations table
+- [x] P0: Show citation and confidence per obligation
+- [x] P1: Add retry or repair path for malformed model output
 
 ## Phase 5: Policy Mapping
 

@@ -3,8 +3,15 @@
 from app.models.workspace import (  # noqa: F401
     Document,
     DocumentChunk,
+    Obligation,
     ResponsibilityOwner,
     Workspace,
 )
 
-__all__ = ["Workspace", "Document", "DocumentChunk", "ResponsibilityOwner"]
+__all__ = [
+    "Workspace",
+    "Document",
+    "DocumentChunk",
+    "ResponsibilityOwner",
+    "Obligation",
+]
