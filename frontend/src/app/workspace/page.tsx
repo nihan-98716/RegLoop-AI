@@ -1,9 +1,15 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState, useCallback } from "react";
 import styles from "./page.module.css";
 import api from "@/lib/api";
-import type { DocumentRead, DocumentType, WorkspaceDetailRead } from "@/lib/types";
+import type {
+  DocumentRead,
+  DocumentType,
+  IngestionStatusRead,
+  WorkspaceDetailRead,
+} from "@/lib/types";
 
 const WORKSPACE_KEY = "regloop_workspace_id";
 
@@ -13,12 +19,23 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1_048_576).toFixed(1)} MB`;
 }
 
+function errorDetail(err: unknown, fallback: string): string {
+  if (typeof err === "object" && err !== null && "detail" in err) {
+    const detail = (err as { detail?: unknown }).detail;
+    if (typeof detail === "string") return detail;
+  }
+  return fallback;
+}
+
 export default function WorkspacePage() {
   const [workspace, setWorkspace] = useState<WorkspaceDetailRead | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploading, setUploading] = useState<DocumentType | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
+  const [ingestion, setIngestion] = useState<IngestionStatusRead | null>(null);
+  const [ingesting, setIngesting] = useState(false);
+  const [ingestionError, setIngestionError] = useState<string | null>(null);
 
   const regulationRef = useRef<HTMLInputElement>(null);
   const policyRef = useRef<HTMLInputElement>(null);
@@ -29,6 +46,11 @@ export default function WorkspacePage() {
     setWorkspace(ws);
   }, []);
 
+  const loadIngestion = useCallback(async (id: string) => {
+    const status = await api.workspace.getIngestion(id);
+    setIngestion(status);
+  }, []);
+
   // Initialise workspace on mount
   useEffect(() => {
     async function init() {
@@ -36,6 +58,7 @@ export default function WorkspacePage() {
       if (stored) {
         try {
           await loadWorkspace(stored);
+          await loadIngestion(stored);
           return;
         } catch {
           localStorage.removeItem(WORKSPACE_KEY);
@@ -44,11 +67,12 @@ export default function WorkspacePage() {
       const created = await api.workspace.create();
       localStorage.setItem(WORKSPACE_KEY, created.id);
       await loadWorkspace(created.id);
+      await loadIngestion(created.id);
     }
     init().catch((err) =>
       setInitError(err?.detail ?? "Failed to initialise workspace.")
     );
-  }, [loadWorkspace]);
+  }, [loadWorkspace, loadIngestion]);
 
   async function handleUpload(file: File, type: DocumentType) {
     if (!workspace) return;
@@ -57,8 +81,9 @@ export default function WorkspacePage() {
     try {
       await api.workspace.uploadDocument(workspace.id, file, type);
       await loadWorkspace(workspace.id);
-    } catch (err: any) {
-      setUploadError(err?.detail ?? "Upload failed.");
+      await loadIngestion(workspace.id);
+    } catch (err: unknown) {
+      setUploadError(errorDetail(err, "Upload failed."));
     } finally {
       setUploading(null);
     }
@@ -71,10 +96,26 @@ export default function WorkspacePage() {
     try {
       await api.workspace.deleteDocument(workspace.id, docId);
       await loadWorkspace(workspace.id);
-    } catch (err: any) {
-      setUploadError(err?.detail ?? "Remove failed.");
+      await loadIngestion(workspace.id);
+    } catch (err: unknown) {
+      setUploadError(errorDetail(err, "Remove failed."));
     } finally {
       setRemoving(null);
+    }
+  }
+
+  async function handleRunIngestion() {
+    if (!workspace) return;
+    setIngestionError(null);
+    setIngesting(true);
+    try {
+      await api.workspace.runIngestion(workspace.id);
+      await loadWorkspace(workspace.id);
+      await loadIngestion(workspace.id);
+    } catch (err: unknown) {
+      setIngestionError(errorDetail(err, "Ingestion failed."));
+    } finally {
+      setIngesting(false);
     }
   }
 
@@ -136,6 +177,19 @@ export default function WorkspacePage() {
             className={styles.errorDismiss}
             onClick={() => setUploadError(null)}
             aria-label="Dismiss error"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {ingestionError && (
+        <div className={styles.errorBanner} id="ingestion-error-banner">
+          <span>{ingestionError}</span>
+          <button
+            className={styles.errorDismiss}
+            onClick={() => setIngestionError(null)}
+            aria-label="Dismiss ingestion error"
           >
             ×
           </button>
@@ -288,20 +342,53 @@ export default function WorkspacePage() {
           />
           <ReadinessItem label="Responsibility matrix" met={!!matrix} />
         </div>
-        <button
-          className="btn btn-primary"
-          disabled={!workspace.ready_for_analysis}
-          id="btn-start-analysis"
-          title={
-            workspace.ready_for_analysis
-              ? undefined
-              : "Upload all required documents first"
-          }
-        >
-          {workspace.ready_for_analysis
-            ? "Start Analysis"
-            : "Start Analysis — awaiting required inputs"}
-        </button>
+        <div className={styles.actionRow}>
+          <button
+            className="btn btn-primary"
+            disabled={!workspace.ready_for_analysis || ingesting}
+            id="btn-run-ingestion"
+            title={
+              workspace.ready_for_analysis
+                ? undefined
+                : "Upload all required documents first"
+            }
+            onClick={handleRunIngestion}
+          >
+            {ingesting
+              ? "Ingesting..."
+              : workspace.ready_for_analysis
+                ? "Run Ingestion"
+                : "Run Ingestion — awaiting required inputs"}
+          </button>
+        </div>
+      </section>
+
+      <section className={styles.ingestionSection}>
+        <SectionHeader
+          label="Ingestion Status"
+          hint="Normalized text chunks and responsibility owners"
+        />
+        <div className={styles.metricsGrid}>
+          <Metric label="Status" value={ingestion?.status ?? workspace.status} />
+          <Metric label="Text Chunks" value={`${ingestion?.chunks.length ?? 0}`} />
+          <Metric
+            label="Owners"
+            value={`${ingestion?.responsibility_owners.length ?? 0}`}
+          />
+        </div>
+        {!!ingestion?.chunks.length && (
+          <div className={styles.previewList}>
+            {ingestion.chunks.slice(0, 3).map((chunk) => (
+              <div className={styles.previewItem} key={chunk.id}>
+                <span className={styles.previewMeta}>
+                  Page {chunk.page_number ?? "?"}
+                  {chunk.section_label ? ` · ${chunk.section_label}` : ""}
+                </span>
+                <p className={styles.previewText}>{chunk.text}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </main>
   );
@@ -312,9 +399,9 @@ export default function WorkspacePage() {
 function Nav({ onNew }: { onNew: () => void }) {
   return (
     <nav className={styles.nav}>
-      <a href="/" className={styles.wordmark}>
+      <Link href="/" className={styles.wordmark}>
         RegLoop AI
-      </a>
+      </Link>
       <div className={styles.navRight}>
         <button
           className="btn btn-ghost"
@@ -422,6 +509,15 @@ function ReadinessItem({ label, met }: { label: string; met: boolean }) {
     <div className={`${styles.readinessItem} ${met ? styles.met : ""}`}>
       <span className={styles.readinessDot} />
       <span>{label}</span>
+    </div>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className={styles.metric}>
+      <span className={styles.metricLabel}>{label}</span>
+      <span className={styles.metricValue}>{value}</span>
     </div>
   );
 }

@@ -43,13 +43,13 @@
 
 ## Phase 3: Document Ingestion
 
-- [ ] P0: Extract text from regulatory PDFs
-- [ ] P0: Extract text from policy PDFs
-- [ ] P0: Chunk policy text into sections
-- [ ] P0: Parse responsibility matrix CSV
-- [ ] P0: Persist document chunks and owner rows
-- [ ] P1: Capture page numbers and section labels where available
-- [ ] P1: Show ingestion status in UI
+- [x] P0: Extract text from regulatory PDFs
+- [x] P0: Extract text from policy PDFs
+- [x] P0: Chunk policy text into sections
+- [x] P0: Parse responsibility matrix CSV
+- [x] P0: Persist document chunks and owner rows
+- [x] P1: Capture page numbers and section labels where available
+- [x] P1: Show ingestion status in UI
 
 ## Phase 4: Obligation Extraction
 

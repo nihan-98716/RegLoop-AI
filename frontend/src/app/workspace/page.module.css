@@ -178,6 +178,11 @@
   gap: 1.5rem;
 }
 
+.actionRow {
+  display: flex;
+  justify-content: flex-start;
+}
+
 .readinessList {
   display: flex;
   flex-direction: column;
@@ -208,6 +213,72 @@
 .readinessItem.met .readinessDot {
   background-color: #ffffff;
   box-shadow: 0 0 4px #ffffff;
+}
+
+/* ── Ingestion ───────────────────────────────────────────────────────────── */
+.ingestionSection {
+  margin-top: 2rem;
+  border: 1px solid #1a1a1a;
+  background: #050505;
+  padding: 1.5rem;
+}
+
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.metric {
+  border: 1px solid #222222;
+  background: #080808;
+  padding: 1rem;
+  min-width: 0;
+}
+
+.metricLabel {
+  display: block;
+  font-size: 0.75rem;
+  color: #666666;
+  margin-bottom: 0.35rem;
+}
+
+.metricValue {
+  display: block;
+  font-size: 0.95rem;
+  color: #ffffff;
+  overflow-wrap: anywhere;
+}
+
+.previewList {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.previewItem {
+  border: 1px solid #222222;
+  background: #080808;
+  padding: 1rem;
+}
+
+.previewMeta {
+  display: block;
+  font-size: 0.75rem;
+  color: #777777;
+  margin-bottom: 0.5rem;
+}
+
+.previewText {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #cfcfcf;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* ── Full States & Errors ────────────────────────────────────────────────── */
@@ -259,4 +330,10 @@
 
 .errorDismiss:hover {
   color: #ffffff;
+}
+
+@media (max-width: 640px) {
+  .metricsGrid {
+    grid-template-columns: 1fr;
+  }
 }

@@ -5,7 +5,7 @@ export type DocumentType =
   | "policy"
   | "responsibility_matrix";
 
-export type DocumentStatus = "uploaded" | "failed";
+export type DocumentStatus = "uploaded" | "ingested" | "failed";
 
 export interface DocumentRead {
   id: string;
@@ -31,6 +31,43 @@ export interface WorkspaceRead {
 export interface WorkspaceDetailRead extends WorkspaceRead {
   documents: DocumentRead[];
   ready_for_analysis: boolean;
+}
+
+export interface DocumentChunkRead {
+  id: string;
+  document_id: string;
+  chunk_index: number;
+  page_number: number | null;
+  section_label: string | null;
+  text: string;
+  created_at: string;
+}
+
+export interface ResponsibilityOwnerRead {
+  id: string;
+  workspace_id: string;
+  domain: string;
+  policy_area: string;
+  owner_name: string;
+  owner_role: string | null;
+  owner_email: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface IngestionRunRead {
+  workspace_id: string;
+  status: string;
+  document_count: number;
+  chunk_count: number;
+  owner_count: number;
+}
+
+export interface IngestionStatusRead {
+  workspace_id: string;
+  status: string;
+  chunks: DocumentChunkRead[];
+  responsibility_owners: ResponsibilityOwnerRead[];
 }
 
 export interface ApiError {

@@ -3,7 +3,14 @@
  * Thin fetch wrapper with error handling and multipart upload support.
  */
 
-import type { DocumentRead, DocumentType, WorkspaceDetailRead, WorkspaceRead } from "./types";
+import type {
+  DocumentRead,
+  DocumentType,
+  IngestionRunRead,
+  IngestionStatusRead,
+  WorkspaceDetailRead,
+  WorkspaceRead,
+} from "./types";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
@@ -81,6 +88,18 @@ export const api = {
       return request(`/workspaces/${workspaceId}/documents/${docId}`, {
         method: "DELETE",
       });
+    },
+
+    /** POST /workspaces/{id}/ingestion */
+    runIngestion(workspaceId: string): Promise<IngestionRunRead> {
+      return request(`/workspaces/${workspaceId}/ingestion`, {
+        method: "POST",
+      });
+    },
+
+    /** GET /workspaces/{id}/ingestion */
+    getIngestion(workspaceId: string): Promise<IngestionStatusRead> {
+      return request(`/workspaces/${workspaceId}/ingestion`);
     },
   },
 } as const;

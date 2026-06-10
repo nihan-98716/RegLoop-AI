@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -28,6 +28,12 @@ class Workspace(Base):
 
     documents: Mapped[list["Document"]] = relationship(
         "Document",
+        back_populates="workspace",
+        cascade="all, delete-orphan",
+        lazy="select",
+    )
+    responsibility_owners: Mapped[list["ResponsibilityOwner"]] = relationship(
+        "ResponsibilityOwner",
         back_populates="workspace",
         cascade="all, delete-orphan",
         lazy="select",
@@ -64,4 +70,66 @@ class Document(Base):
 
     workspace: Mapped["Workspace"] = relationship(
         "Workspace", back_populates="documents"
+    )
+    chunks: Mapped[list["DocumentChunk"]] = relationship(
+        "DocumentChunk",
+        back_populates="document",
+        cascade="all, delete-orphan",
+        lazy="select",
+    )
+
+
+class DocumentChunk(Base):
+    """Normalized extracted text from a PDF document."""
+
+    __tablename__ = "document_chunks"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    document_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("documents.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    page_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    section_label: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+
+    document: Mapped["Document"] = relationship(
+        "Document", back_populates="chunks"
+    )
+
+
+class ResponsibilityOwner(Base):
+    """Parsed owner row from the uploaded responsibility matrix."""
+
+    __tablename__ = "responsibility_owners"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    workspace_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    domain: Mapped[str] = mapped_column(String(255), nullable=False)
+    policy_area: Mapped[str] = mapped_column(String(255), nullable=False)
+    owner_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    owner_role: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    owner_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+
+    workspace: Mapped["Workspace"] = relationship(
+        "Workspace", back_populates="responsibility_owners"
     )
