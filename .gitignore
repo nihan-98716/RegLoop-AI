@@ -1,0 +1,32 @@
+# Version Control Ignore Rules
+
+# Python & Virtual Environments
+backend/.venv/
+backend/venv/
+backend/env/
+backend/__pycache__/
+backend/*.py[cod]
+backend/*.pyo
+backend/*.pyd
+
+# Node & Frontend dependencies
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+
+# Local database and storage
+*.db
+*.db-journal
+backend/storage/
+backend/regloop.db
+frontend/.env.local
+.env
+
+# Cache files
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+frontend/*.tsbuildinfo

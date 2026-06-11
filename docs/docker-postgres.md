@@ -18,7 +18,7 @@ Planned Docker Compose services:
 Suggested variables:
 
 ```env
-DATABASE_URL=postgresql+psycopg://regloop:regloop@postgres:5432/regloop
+DATABASE_URL=postgresql+asyncpg://regloop:regloop@postgres:5432/regloop
 SQLITE_DATABASE_URL=sqlite:///./regloop.db
 UPLOAD_DIR=./storage/uploads
 LLM_PROVIDER=openai
