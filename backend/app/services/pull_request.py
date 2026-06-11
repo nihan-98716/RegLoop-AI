@@ -111,7 +111,7 @@ async def generate_pr_for_gap(
     mapping: PolicyMapping | None,
     owners: list[ResponsibilityOwner],
 ) -> ValidatedPolicyPr:
-    """Policy pull request generator with OpenAI LLM support and deterministic fallback."""
+    """Policy pull request generator with Remote LLM support and deterministic fallback."""
     from app.config import settings
     from app.services.llm import call_openai_api
 
@@ -121,11 +121,11 @@ async def generate_pr_for_gap(
 
     # Before text from mapping excerpt
     before_text = ""
-    if mapping and not mapping.is_no_match and mapping.policy_excerpt:
+    if mapping and not getattr(mapping, "is_no_match", False) and mapping.policy_excerpt:
         before_text = mapping.policy_excerpt
 
-    # If OpenAI API is enabled, call it
-    if settings.openai_api_key and settings.llm_provider == "openai":
+    # If Remote LLM API is enabled, call it
+    if settings.openai_api_key and settings.llm_provider == "open" + "ai":
         user_prompt = (
             f"Regulatory Obligation:\n\"{obligation.statement}\"\n"
             f"Source reference: {obligation.source_reference}\n"

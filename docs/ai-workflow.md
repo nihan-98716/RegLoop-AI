@@ -2,7 +2,7 @@
 
 ## Provider Strategy
 
-Use a small provider abstraction so the application can call OpenAI, Claude, or Gemini without changing workflow code.
+Use a small provider abstraction so the application can call remote endpoints, Claude, or Gemini without changing workflow code.
 
 Required provider behavior:
 

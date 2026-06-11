@@ -1,6 +1,6 @@
 """Workspaces and documents router."""
 
-import csv
+from defusedcsv import csv
 import io
 import uuid
 from datetime import datetime, timezone
@@ -26,7 +26,7 @@ from app.models.workspace import (
 from app.schemas.gap_analysis import GapAnalysisRead
 from app.schemas.mapping import PolicyMappingRead
 from app.schemas.obligations import ObligationRead
-from app.schemas.pull_request import PolicyPullRequestRead
+from app.schemas.pull_request import PolicyPullRequestRead, ReviewActionRead
 from app.schemas.workspace import (
     AuditRecordRead,
     DocumentRead,
@@ -237,6 +237,20 @@ async def export_workspace_json(
         )
         prs = list(pr_res.scalars().all())
 
+    # 6. Review Decisions
+    reviews = []
+    pr_ids = [p.id for p in prs]
+    if pr_ids:
+        rev_res = await db.execute(
+            select(ReviewAction)
+            .where(ReviewAction.policy_pull_request_id.in_(pr_ids))
+            .order_by(ReviewAction.created_at, ReviewAction.id)
+        )
+        reviews = list(rev_res.scalars().all())
+
+    # 7. Audit Trail Records
+    audit_events = await get_workspace_audit_log(workspace_id, db)
+
     data = {
         "workspace": WorkspaceRead.model_validate(workspace).model_dump(),
         "documents": [DocumentRead.model_validate(d).model_dump() for d in documents],
@@ -245,6 +259,12 @@ async def export_workspace_json(
         "gap_analyses": [GapAnalysisRead.model_validate(g).model_dump() for g in gaps],
         "policy_pull_requests": [
             PolicyPullRequestRead.model_validate(pr).model_dump() for pr in prs
+        ],
+        "review_decisions": [
+            ReviewActionRead.model_validate(r).model_dump() for r in reviews
+        ],
+        "audit_trail_records": [
+            e.model_dump() for e in audit_events
         ],
     }
 
@@ -300,7 +320,7 @@ async def export_workspace_csv(
     output = io.StringIO()
     writer = csv.writer(output)
 
-    # Write headers
+    # Write Table 1: Obligations and Policy PRs
     headers = [
         "Obligation ID",
         "Obligation Statement",
@@ -341,7 +361,7 @@ async def export_workspace_csv(
             obl.source_reference,
             obl.compliance_domain or "",
             obl.confidence,
-            m.policy_excerpt if (m and not m.is_no_match) else "",
+            m.policy_excerpt if (m and not getattr(m, "is_no_match", False)) else "",
             m.confidence if m else "",
             g.coverage_status if g else "",
             g.reasoning if g else "",
@@ -355,6 +375,47 @@ async def export_workspace_csv(
             latest_comment,
         ]
         writer.writerow(row)
+
+    # Write separator and Table 2: Review Decisions
+    writer.writerow([])
+    writer.writerow(["--- REVIEW DECISIONS / ACTIONS ---"])
+    writer.writerow(["Review ID", "PR ID", "PR Title", "Action", "Reviewer Label", "Comment", "Modified Text", "Timestamp"])
+
+    pr_ids = [p.id for p in prs]
+    reviews = []
+    if pr_ids:
+        rev_res = await db.execute(
+            select(ReviewAction)
+            .where(ReviewAction.policy_pull_request_id.in_(pr_ids))
+            .order_by(ReviewAction.created_at, ReviewAction.id)
+        )
+        reviews = list(rev_res.scalars().all())
+
+    pr_title_map = {p.id: p.title for p in prs}
+    for r in reviews:
+        writer.writerow([
+            r.id,
+            r.policy_pull_request_id,
+            pr_title_map.get(r.policy_pull_request_id, ""),
+            r.action,
+            r.reviewer_label,
+            r.comment or "",
+            r.modified_text or "",
+            r.created_at.isoformat() if r.created_at else "",
+        ])
+
+    # Write separator and Table 3: Audit Trail Records
+    writer.writerow([])
+    writer.writerow(["--- AUDIT TRAIL RECORDS ---"])
+    writer.writerow(["Timestamp", "Event Type", "Details"])
+
+    audit_events = await get_workspace_audit_log(workspace_id, db)
+    for event in audit_events:
+        writer.writerow([
+            event.timestamp.isoformat() if event.timestamp else "",
+            event.event_type,
+            event.details,
+        ])
 
     # Reset buffer position
     output.seek(0)

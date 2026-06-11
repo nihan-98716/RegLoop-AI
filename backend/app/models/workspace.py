@@ -13,13 +13,18 @@ from app.database import Base
 # high | medium | low
 
 
+def generate_uuid() -> str:
+    """Generate a random UUID string."""
+    return str(uuid.uuid4())
+
+
 class Workspace(Base):
     """A compliance review workspace containing all uploaded documents."""
 
     __tablename__ = "workspaces"
 
     id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+        String(36), primary_key=True, default=generate_uuid
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="active")
@@ -62,7 +67,7 @@ class Document(Base):
     __tablename__ = "documents"
 
     id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+        String(36), primary_key=True, default=generate_uuid
     )
     workspace_id: Mapped[str] = mapped_column(
         String(36),
@@ -113,7 +118,7 @@ class DocumentChunk(Base):
     __tablename__ = "document_chunks"
 
     id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+        String(36), primary_key=True, default=generate_uuid
     )
     document_id: Mapped[str] = mapped_column(
         String(36),
@@ -146,7 +151,7 @@ class ResponsibilityOwner(Base):
     __tablename__ = "responsibility_owners"
 
     id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+        String(36), primary_key=True, default=generate_uuid
     )
     workspace_id: Mapped[str] = mapped_column(
         String(36),
@@ -175,7 +180,7 @@ class PolicyMapping(Base):
     __tablename__ = "policy_mappings"
 
     id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+        String(36), primary_key=True, default=generate_uuid
     )
     obligation_id: Mapped[str] = mapped_column(
         String(36),
@@ -230,7 +235,7 @@ class Obligation(Base):
     __tablename__ = "obligations"
 
     id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+        String(36), primary_key=True, default=generate_uuid
     )
     workspace_id: Mapped[str] = mapped_column(
         String(36),
@@ -286,7 +291,7 @@ class GapAnalysis(Base):
     __tablename__ = "gap_analyses"
 
     id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+        String(36), primary_key=True, default=generate_uuid
     )
     obligation_id: Mapped[str] = mapped_column(
         String(36),
@@ -332,7 +337,7 @@ class PolicyPullRequest(Base):
     __tablename__ = "policy_pull_requests"
 
     id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+        String(36), primary_key=True, default=generate_uuid
     )
     workspace_id: Mapped[str] = mapped_column(
         String(36),
@@ -401,7 +406,7 @@ class ReviewAction(Base):
     __tablename__ = "review_actions"
 
     id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+        String(36), primary_key=True, default=generate_uuid
     )
     policy_pull_request_id: Mapped[str] = mapped_column(
         String(36),

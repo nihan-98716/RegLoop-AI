@@ -21,7 +21,7 @@ Suggested variables:
 DATABASE_URL=postgresql+asyncpg://regloop:regloop@postgres:5432/regloop
 SQLITE_DATABASE_URL=sqlite:///./regloop.db
 UPLOAD_DIR=./storage/uploads
-LLM_PROVIDER=openai
+LLM_PROVIDER=
 OPENAI_API_KEY=
 ANTHROPIC_API_KEY=
 GOOGLE_API_KEY=

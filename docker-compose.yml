@@ -10,7 +10,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U regloop -d regloop"]
       interval: 10s
@@ -29,7 +29,7 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://regloop:regloop@postgres:5432/regloop
       UPLOAD_DIR: /app/storage/uploads
-      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+      LLM_PROVIDER: ${LLM_PROVIDER:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
@@ -38,7 +38,7 @@ services:
     volumes:
       - uploads_data:/app/storage/uploads
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
       interval: 15s
@@ -57,7 +57,7 @@ services:
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000/api
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
 
   # ── Adminer (optional DB inspection) ───────────────────────────────────
   adminer:
@@ -66,7 +66,7 @@ services:
     depends_on:
       - postgres
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     profiles:
       - tools
 

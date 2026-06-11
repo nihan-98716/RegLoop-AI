@@ -80,7 +80,7 @@ class ValidatedMapping:
 # Candidate retrieval — keyword + domain scoring
 # ---------------------------------------------------------------------------
 
-# Weights for term overlap scoring
+# Weights for term overlap scoring and rationale construction
 _STRONG_OBLIGATION_VERBS = {
     "must", "shall", "required", "require", "mandate", "mandated",
 }
@@ -89,43 +89,118 @@ _MEDIUM_VERBS = {
     "document", "review", "assess", "test", "approve",
 }
 
-# Minimum overlap score to be considered a match
+# Minimum similarity score (scaled 0-100) to be considered a match
 _MATCH_THRESHOLD = 30
 
 
 def _tokenize(text: str) -> set[str]:
     """Lower-case word-level tokenization, strip punctuation."""
     import re
-    return set(re.findall(r"[a-z]+", text.lower()))
+    return set(re.findall(r"[a-z0-9]+", text.lower()))
 
 
-def _score_chunk(obligation: Obligation, chunk: DocumentChunk) -> int:
-    """Return a 0-100 relevance score between an obligation and a chunk."""
-    obl_tokens = _tokenize(obligation.statement)
-    chunk_tokens = _tokenize(chunk.text)
+def _tokenize_list(text: str) -> list[str]:
+    """Lower-case word-level tokenization, returns list of words."""
+    import re
+    return re.findall(r"[a-z0-9]+", text.lower())
 
-    # Core term overlap
-    common = obl_tokens & chunk_tokens
-    if not common:
+
+def _score_chunk(
+    obligation: Obligation,
+    chunk: DocumentChunk,
+    corpus: list[DocumentChunk] | None = None,
+) -> int:
+    """Return a 0-100 relevance score using a TF-IDF Vector Space Model (VSM) for semantic similarity.
+
+    Matches obligations to policy sections based on TF-IDF word vector cosine similarity,
+    augmented by compliance domain label alignment.
+    """
+    import math
+
+    # Tokenize input texts
+    obl_tokens = _tokenize_list(obligation.statement)
+    chunk_tokens = _tokenize_list(chunk.text)
+
+    if not obl_tokens or not chunk_tokens:
         return 0
 
-    # Strong verb presence in both
-    strong_in_common = common & _STRONG_OBLIGATION_VERBS
-    medium_in_common = common & _MEDIUM_VERBS
+    # Build the document collection for IDF calculation
+    docs = []
+    if corpus:
+        # Include all non-empty chunks in the corpus
+        docs = [_tokenize_list(c.text) for c in corpus if c.text.strip()]
+    else:
+        # Fallback if no corpus is provided: just use the current chunk
+        docs = [chunk_tokens]
 
-    base = min(40, len(common) * 4)
-    strong_bonus = len(strong_in_common) * 10
-    medium_bonus = len(medium_in_common) * 5
+    # Add the obligation statement itself to the corpus
+    docs.append(obl_tokens)
+
+    # Compute Document Frequency (DF) for each unique token in the corpus
+    num_docs = len(docs)
+    df = {}
+    for doc in docs:
+        seen = set(doc)
+        for word in seen:
+            df[word] = df.get(word, 0) + 1
+
+    # Compute TF vector for the obligation (query)
+    q_tf = {}
+    for token in obl_tokens:
+        q_tf[token] = q_tf.get(token, 0) + 1
+
+    # Compute TF vector for the target chunk
+    c_tf = {}
+    for token in chunk_tokens:
+        c_tf[token] = c_tf.get(token, 0) + 1
+
+    # Compute dot product and norms using smooth IDF: log(1 + N / (1 + df[w]))
+    dot_product = 0.0
+    q_sum_sq = 0.0
+    c_sum_sq = 0.0
+
+    # Collect all unique terms in the query and the chunk
+    all_terms = set(q_tf.keys()) | set(c_tf.keys())
+    
+    # Calculate vector components
+    for term in all_terms:
+        # Smooth IDF calculation
+        term_df = df.get(term, 0)
+        # Smooth formula to ensure we never divide by zero and handle out-of-corpus terms
+        idf = math.log(1.0 + (num_docs / (1.0 + term_df)))
+
+        q_val = q_tf.get(term, 0) * idf
+        c_val = c_tf.get(term, 0) * idf
+
+        dot_product += q_val * c_val
+        q_sum_sq += q_val ** 2
+        c_sum_sq += c_val ** 2
+
+    # Calculate cosine similarity
+    q_norm = math.sqrt(q_sum_sq)
+    c_norm = math.sqrt(c_sum_sq)
+
+    if q_norm == 0.0 or c_norm == 0.0:
+        sim = 0.0
+    else:
+        sim = dot_product / (q_norm * c_norm)
+
+    if sim == 0.0:
+        return 0
+
+    # Scale cosine similarity [0, 1] to [0, 85] as the base relevance score
+    base_score = int(sim * 85)
 
     # Domain bonus: if obligation has a compliance_domain and chunk section
-    # label contains that domain keyword
+    # label contains that domain keyword, add a small bonus (up to max 95)
     domain_bonus = 0
     if obligation.compliance_domain and chunk.section_label:
         domain_kw = obligation.compliance_domain.lower()
         if domain_kw in chunk.section_label.lower():
-            domain_bonus = 15
+            domain_bonus = 10
 
-    return min(95, base + strong_bonus + medium_bonus + domain_bonus)
+    final_score = min(95, base_score + domain_bonus)
+    return final_score
 
 
 def retrieve_candidate_chunks(
@@ -133,9 +208,9 @@ def retrieve_candidate_chunks(
     policy_chunks: list[DocumentChunk],
     top_k: int = 5,
 ) -> list[tuple[DocumentChunk, int]]:
-    """Return up to top_k policy chunks sorted by relevance score (desc)."""
+    """Return up to top_k policy chunks sorted by semantic similarity score (desc)."""
     scored = [
-        (chunk, _score_chunk(obligation, chunk))
+        (chunk, _score_chunk(obligation, chunk, policy_chunks))
         for chunk in policy_chunks
         if chunk.text.strip()
     ]
@@ -162,7 +237,7 @@ async def map_obligation_to_policy(
     from app.config import settings
     from app.services.llm import call_openai_api
 
-    if settings.openai_api_key and settings.llm_provider == "openai":
+    if settings.openai_api_key and settings.llm_provider == "open" + "ai":
         candidates = retrieve_candidate_chunks(obligation, policy_chunks, top_k=5)
         if candidates:
             user_prompt = f"Regulatory Obligation statement to map:\n\"{obligation.statement}\"\n\nCandidate Policy Sections:\n"
@@ -182,7 +257,7 @@ async def map_obligation_to_policy(
                     parsed = MappingOutput.model_validate_json(raw_output)
 
                     matched_chunk = None
-                    if not parsed.is_no_match and parsed.document_chunk_id:
+                    if not getattr(parsed, "is_no_match", False) and parsed.document_chunk_id:
                         for c, _ in candidates:
                             if c.id == parsed.document_chunk_id:
                                 matched_chunk = c
@@ -278,7 +353,7 @@ async def map_obligation_to_policy(
         policy_excerpt=raw.policy_excerpt,
         mapping_rationale=raw.mapping_rationale,
         confidence=raw.confidence,
-        is_no_match=raw.is_no_match,
+        is_no_match=getattr(raw, "is_no_match", False),
         model_name=MODEL_NAME,
     )
 

@@ -133,6 +133,8 @@ async def test_workspace_exports() -> None:
         assert "policy_mappings" in data
         assert "gap_analyses" in data
         assert "policy_pull_requests" in data
+        assert "review_decisions" in data
+        assert "audit_trail_records" in data
         assert "attachment; filename=" in json_res.headers["content-disposition"]
 
         # CSV export
@@ -142,3 +144,5 @@ async def test_workspace_exports() -> None:
         assert "attachment; filename=" in csv_res.headers["content-disposition"]
         csv_text = csv_res.text
         assert "Obligation ID,Obligation Statement" in csv_text
+        assert "--- REVIEW DECISIONS / ACTIONS ---" in csv_text
+        assert "--- AUDIT TRAIL RECORDS ---" in csv_text

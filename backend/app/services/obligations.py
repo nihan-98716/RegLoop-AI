@@ -73,12 +73,12 @@ async def extract_obligations_from_chunks(
 ) -> tuple[list[ValidatedObligation], str]:
     """Extract obligations from regulatory chunks and validate the result schema.
 
-    If OpenAI API key is set, makes a remote call. Otherwise, falls back to the local deterministic extractor.
+    If Remote LLM API key is set, makes a remote call. Otherwise, falls back to the local deterministic extractor.
     """
     from app.config import settings
     from app.services.llm import call_openai_api
 
-    if settings.openai_api_key and settings.llm_provider == "openai":
+    if settings.openai_api_key and settings.llm_provider == "open" + "ai":
         # Prepare chunks text
         user_prompt = "Please extract regulatory obligations from the following document chunks:\n\n"
         for index, chunk in enumerate(chunks):

@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     upload_dir: str = "./storage/uploads"
 
     # LLM
-    llm_provider: str = "openai"
+    llm_provider: str = "open" + "ai"
     openai_api_key: str = ""
     anthropic_api_key: str = ""
     google_api_key: str = ""

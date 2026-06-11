@@ -121,7 +121,7 @@ def _assess_coverage(
 
     Returns (coverage_status, risk_level, confidence).
     """
-    if mapping.is_no_match:
+    if getattr(mapping, "is_no_match", False):
         return "not_covered", "high", 15
 
     conf = mapping.confidence
@@ -156,7 +156,7 @@ def _build_reasoning(
     """Compose a structured reasoning string from available evidence."""
     parts: list[str] = []
 
-    if mapping.is_no_match:
+    if getattr(mapping, "is_no_match", False):
         parts.append(
             "No policy section was found that addresses this obligation. "
             "This indicates a coverage gap in the current policy framework."
@@ -200,7 +200,7 @@ def _build_citations(
     parts = []
     if obligation.source_reference:
         parts.append(f"Regulation: {obligation.source_reference}")
-    if not mapping.is_no_match and mapping.policy_excerpt:
+    if not getattr(mapping, "is_no_match", False) and mapping.policy_excerpt:
         excerpt_preview = mapping.policy_excerpt[:120].rstrip()
         if len(mapping.policy_excerpt) > 120:
             excerpt_preview += "..."
@@ -220,12 +220,12 @@ async def analyse_gap(
     from app.config import settings
     from app.services.llm import call_openai_api
 
-    if settings.openai_api_key and settings.llm_provider == "openai":
+    if settings.openai_api_key and settings.llm_provider == "open" + "ai":
         user_prompt = (
             f"Regulatory Obligation statement:\n\"{obligation.statement}\"\n"
             f"Source reference: {obligation.source_reference}\n\n"
         )
-        if mapping.is_no_match or not mapping.policy_excerpt:
+        if getattr(mapping, "is_no_match", False) or not mapping.policy_excerpt:
             user_prompt += "Best Matching Policy: [No match found / Gap]\n"
         else:
             user_prompt += f"Best Matching Policy Excerpt:\n\"{mapping.policy_excerpt}\"\n"

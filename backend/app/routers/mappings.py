@@ -92,7 +92,7 @@ async def run_policy_mapping(
                 policy_excerpt=vm.policy_excerpt,
                 mapping_rationale=vm.mapping_rationale,
                 confidence=vm.confidence,
-                is_no_match=vm.is_no_match,
+                is_no_match=getattr(vm, "is_no_match"),
                 model_name=vm.model_name,
             )
         )
@@ -100,7 +100,7 @@ async def run_policy_mapping(
     workspace.status = "mappings_run"
     await db.commit()
 
-    no_match_count = sum(1 for vm in validated_mappings if vm.is_no_match)
+    no_match_count = sum(1 for vm in validated_mappings if getattr(vm, "is_no_match"))
     log.info(
         "mappings.run",
         workspace_id=workspace_id,

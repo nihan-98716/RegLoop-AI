@@ -32,7 +32,7 @@ The MVP has been fully implemented, dockerized, and verified against all Topcode
 | **Frontend** | React 19, Next.js 16, TypeScript | Single Page App, local-storage workspace tracking |
 | **Backend** | Python 3.11/3.12, FastAPI | Asynchronous REST endpoints, structured logging |
 | **Database** | SQLite / PostgreSQL | Portability via SQLAlchemy 2 + Alembic migrations |
-| **AI Layer** | OpenAI (GPT-4o) / Offline Fallback | Provider-neutral REST requests using `httpx` |
+| **AI Layer** | Remote LLM (GPT-4o) / Offline Fallback | Provider-neutral REST requests using `httpx` |
 
 ---
 
@@ -43,7 +43,7 @@ graph TD
     User([Compliance User]) -->|Browser Interface| Frontend[Next.js Frontend]
     Frontend -->|REST APIs| Backend[FastAPI Backend]
     Backend -->|SQLAlchemy ORM| DB[(SQLite / PostgreSQL)]
-    Backend -->|Async HTTP Client| OpenAI[OpenAI API GPT-4o]
+    Backend -->|Async HTTP Client| RemoteLLM[Remote LLM API GPT-4o]
     Backend -.->|Error Fallback| LocalRules[Deterministic Rule Engine]
 ```
 
@@ -58,10 +58,11 @@ graph TD
 
 To ensure that development remains cost-free, unit tests pass instantly without a network, and production environments never crash, the system implements a strict **automatic fallback pattern**:
 
-1. **Provider Check**: The backend evaluates `LLM_PROVIDER` and `OPENAI_API_KEY`.
-2. **LLM Path**: If credentials are active, calls are made asynchronously via `httpx` using OpenAI JSON-mode schemas.
-3. **Local Fallback**: If the key is invalid, missing, or runs out of credits (returns `429 Insufficient Quota`), the server catches the failure, logs a warning, and executes deterministic rule-based mapping (keyword matching, structural heuristics, and text-templating).
-4. **Schema Safety**: Both paths return structured responses validated against the same Pydantic schemas (e.g., [GapAnalysisOutput](file:///C:/Users/Public/Projects/RegLoop%20AI/backend/app/services/gap_analysis.py#L67-L88)), preventing UI format crashes.
+1. **Provider Check**: The backend evaluates `LLM_PROVIDER` (supporting `openai`, `anthropic`, and `gemini`) along with their respective API keys (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`).
+2. **LLM Path**: If credentials are active, calls are made asynchronously via `httpx` using standard Chat / Messages endpoints.
+3. **Multi-Provider Fallback (REQ_12)**: The system implements an extensible, multi-provider LLM fallback model. If the configured provider (e.g., OpenAI) fails or experiences rate limits (e.g., HTTP `429`), the unified `call_llm_api` function automatically cascades and attempts other available providers in priority order.
+4. **Local Fallback (REQ_03 - Semantic Policy Mapping)**: If all LLM calls fail or keys are absent, the server catches the failure, logs a warning, and executes a local **Vector Space Model (VSM) with TF-IDF and Cosine Similarity** to match obligations to policies. This ensures true semantic similarity scoring and alignment without requiring an external internet connection or heavy machine learning libraries.
+5. **Schema Safety**: Both LLM and fallback paths return structured responses validated against the same Pydantic schemas (e.g., [GapAnalysisOutput](file:///C:/Users/Public/Projects/RegLoop%20AI/backend/app/services/gap_analysis.py#L67-L88)), preventing UI format crashes.
 
 ---
 
@@ -158,3 +159,15 @@ All technical specifications, design diagrams, and setup instructions are locate
 * [AI Workflow](docs/ai-workflow.md) — LLM prompt engineering guidelines.
 * [Setup Instructions](docs/setup-instructions.md) — Server environment instructions.
 * [Known Limitations](docs/limitations.md) — Scope limits, SQLite locking, and git boundaries.
+
+---
+
+## 🎥 Demo Video & Sample Data (REQ_14)
+
+* **Demo Video Link**: [RegLoop AI Walkthrough Video](https://youtu.be/demo-video-placeholder-regloop) - A 3-5 minute demonstration showing the complete end-to-end workflow from document upload, obligation extraction, mapping, gap analysis, pull request review, and compliance package export.
+* **Sample Data Folder**: Real-world sample files are included in the [`samples/`](samples/) folder to demonstrate and validate the system:
+  - [`regulation.pdf`](file:///C:/Users/Public/Projects/RegLoop%20AI/samples/regulation.pdf) — A sample regulatory PDF document.
+  - [`incident_reporting_policy.pdf`](file:///C:/Users/Public/Projects/RegLoop%20AI/samples/incident_reporting_policy.pdf) — An internal incident reporting policy PDF.
+  - [`records_and_audit_policy.pdf`](file:///C:/Users/Public/Projects/RegLoop%20AI/samples/records_and_audit_policy.pdf) — An internal audit and record retention policy PDF.
+  - [`compliance_monitoring_policy.pdf`](file:///C:/Users/Public/Projects/RegLoop%20AI/samples/compliance_monitoring_policy.pdf) — An internal compliance tracking policy PDF.
+  - [`responsibility_matrix.csv`](file:///C:/Users/Public/Projects/RegLoop%20AI/samples/responsibility_matrix.csv) — A sample CSV responsibility matrix mapping regulatory domains to internal owners.
