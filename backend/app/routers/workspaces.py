@@ -1,4 +1,11 @@
-"""Workspaces and documents router."""
+"""Workspaces and documents router.
+
+Handles:
+  - Workspace CRUD (create, read, list)
+  - Document upload and deletion (regulation, policy, responsibility_matrix)
+  - Full workspace data export (JSON and CSV formats)
+  - Audit log aggregation across all compliance pipeline stages
+"""
 
 from defusedcsv import csv
 import io
@@ -435,7 +442,26 @@ async def get_workspace_audit_log(
     workspace_id: str,
     db: AsyncSession = Depends(get_db),
 ) -> list[AuditRecordRead]:
-    """Retrieve end-to-end audit log records for the workspace, dynamically aggregated."""
+    """Retrieve a chronological audit log for the workspace, dynamically aggregated.
+
+    Design note: rather than maintaining a separate audit_events table with triggers,
+    this function derives the audit trail on-the-fly by querying each pipeline
+    entity table (documents, chunks, obligations, mappings, gap analyses, PRs, reviews)
+    and synthesising a timestamped event from the earliest record in each group.
+
+    This approach guarantees the audit log is always consistent with the actual
+    database state and requires no additional write path. Events are sorted by
+    timestamp before returning so the caller always gets a chronological sequence.
+
+    Event types emitted (in typical workflow order):
+      document_uploaded   — one event per uploaded file.
+      ingestion_run       — one event when the first chunk is available.
+      obligations_extracted — one event summarising the extraction run.
+      mappings_run        — one event when the first mapping record exists.
+      gap_analysis_run    — one event when the first gap analysis exists.
+      prs_generated       — one event summarising the PR generation run.
+      pr_reviewed         — one event per human review action.
+    """
     workspace = await _get_workspace_or_404(workspace_id, db)
 
     events: list[AuditRecordRead] = []

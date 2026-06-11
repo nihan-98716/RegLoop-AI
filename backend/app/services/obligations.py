@@ -209,6 +209,18 @@ def _source_reference(chunk: DocumentChunk) -> str:
 
 
 def _confidence(sentence: str) -> int:
+    """Derive a confidence score (0–95) from the strength of obligation language.
+
+    Scoring formula (capped at 95 to signal model uncertainty):
+      - Base score: 72
+      - +8 per strong mandatory verb (must / shall / required) — indicates
+        a binding duty with high regulatory weight.
+      - +4 per medium obligation verb (ensure / maintain / report / retain / notify) —
+        indicates an operational requirement with moderate binding force.
+
+    A score ≥ 70 is treated as "fully covered" by the gap-analysis rules;
+    40–69 is "partially covered"; below 40 is "not covered".
+    """
     lowered = sentence.lower()
     strong = sum(1 for word in ("must", "shall", "required") if word in lowered)
     medium = sum(1 for word in ("ensure", "maintain", "report", "retain", "notify") if word in lowered)
@@ -216,6 +228,18 @@ def _confidence(sentence: str) -> int:
 
 
 def _domain(sentence: str) -> str | None:
+    """Classify an obligation sentence into a compliance domain using keyword heuristics.
+
+    Domain classification priority (first match wins):
+      - Reporting  : obligation involves submitting information to a regulator or notifying parties.
+      - Records    : obligation requires retaining, evidencing, or auditing data.
+      - Monitoring : obligation involves ongoing review, testing, or surveillance.
+      - Governance : obligation relates to board approval, oversight, or governance structures.
+      - None       : no recognisable compliance domain — obligation may be general or procedural.
+
+    This is a lightweight heuristic used by the deterministic (non-LLM) fallback extractor.
+    The LLM extraction path uses the model to classify the domain directly.
+    """
     lowered = sentence.lower()
     if any(word in lowered for word in ("report", "notify", "notification")):
         return "Reporting"

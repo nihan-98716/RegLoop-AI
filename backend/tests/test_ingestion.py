@@ -123,3 +123,93 @@ async def test_ingestion_rejects_matrix_missing_required_columns() -> None:
 
     assert response.status_code == 422
     assert "missing columns" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_ingestion_rollback_on_pdf_parse_error() -> None:
+    """Test that a failed ingestion rolls back the DB and does not leave partial chunks.
+
+    Simulates a corrupt/unreadable PDF to verify the transaction rollback path
+    in run_ingestion and ensures no orphaned DocumentChunk rows are written.
+    """
+    from unittest.mock import patch
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        ws_id = (await client.post("/api/workspaces", json={"name": "Rollback Test"})).json()["id"]
+        await client.post(
+            f"/api/workspaces/{ws_id}/documents",
+            data={"document_type": "regulation"},
+            files={"file": ("regulation.pdf", b"%PDF-1.4\nsome content", "application/pdf")},
+        )
+        await client.post(
+            f"/api/workspaces/{ws_id}/documents",
+            data={"document_type": "policy"},
+            files={"file": ("policy.pdf", b"%PDF-1.4\nsome policy", "application/pdf")},
+        )
+        await client.post(
+            f"/api/workspaces/{ws_id}/documents",
+            data={"document_type": "responsibility_matrix"},
+            files={"file": ("matrix.csv", b"domain,policy_area,owner_name,owner_role,owner_email,notes\nData,Privacy,Jane,DPO,j@e.com,\n", "text/csv")},
+        )
+
+        # Simulate a crash during chunking
+        with patch(
+            "app.routers.ingestion.chunk_pdf_document",
+            side_effect=RuntimeError("Simulated PDF parse failure"),
+        ):
+            response = await client.post(f"/api/workspaces/{ws_id}/ingestion")
+
+        # Server should return 500, not silently succeed
+        assert response.status_code == 500
+
+        # Verify no chunks were persisted (rollback succeeded)
+        status = await client.get(f"/api/workspaces/{ws_id}/ingestion")
+        assert status.json()["chunks"] == []
+
+
+@pytest.mark.asyncio
+async def test_audit_log_endpoint_returns_ordered_events() -> None:
+    """Test that the audit log endpoint returns events in chronological order.
+
+    Verifies that after running the ingestion step, the audit log includes
+    a 'document_uploaded' event and an 'ingestion_run' event in the correct order.
+    """
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        ws_id = (await client.post("/api/workspaces", json={"name": "Audit Test"})).json()["id"]
+        await client.post(
+            f"/api/workspaces/{ws_id}/documents",
+            data={"document_type": "regulation"},
+            files={"file": ("regulation.pdf", b"%PDF-1.4\nThe firm must report incidents.", "application/pdf")},
+        )
+        await client.post(
+            f"/api/workspaces/{ws_id}/documents",
+            data={"document_type": "policy"},
+            files={"file": ("policy.pdf", b"%PDF-1.4\nPolicy text.", "application/pdf")},
+        )
+        await client.post(
+            f"/api/workspaces/{ws_id}/documents",
+            data={"document_type": "responsibility_matrix"},
+            files={"file": ("matrix.csv", b"domain,policy_area,owner_name,owner_role,owner_email,notes\nData,Privacy,Jane,DPO,j@e.com,\n", "text/csv")},
+        )
+        await client.post(f"/api/workspaces/{ws_id}/ingestion")
+
+        audit_res = await client.get(f"/api/workspaces/{ws_id}/audit")
+        assert audit_res.status_code == 200
+        events = audit_res.json()
+
+        # Must have at least document upload + ingestion events
+        assert len(events) >= 2
+
+        # Events must be returned in chronological order
+        timestamps = [e["timestamp"] for e in events]
+        assert timestamps == sorted(timestamps), "Audit events are not in chronological order"
+
+        # Must contain expected event types
+        event_types = [e["event_type"] for e in events]
+        assert "document_uploaded" in event_types
+        assert "ingestion_run" in event_types

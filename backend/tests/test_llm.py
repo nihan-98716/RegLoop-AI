@@ -110,3 +110,60 @@ async def test_llm_fallback_routing_all_fail() -> None:
         settings.openai_api_key = original_openai
         settings.anthropic_api_key = original_anthropic
         settings.google_api_key = original_google
+
+
+@pytest.mark.anyio
+async def test_llm_billing_error_bails_out_immediately() -> None:
+    """Test that billing/quota errors short-circuit the retry loop instead of cascading."""
+    original_openai = settings.openai_api_key
+    original_anthropic = settings.anthropic_api_key
+    settings.openai_api_key = "fake-openai-key"
+    settings.anthropic_api_key = ""
+
+    try:
+        with patch("httpx.AsyncClient") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client_cls.return_value.__aenter__.return_value = mock_client
+
+            from unittest.mock import MagicMock
+            mock_resp = AsyncMock()
+            mock_resp.status_code = 429
+            mock_resp.text = "insufficient_quota"
+            mock_resp.json = MagicMock(return_value={
+                "error": {"code": "insufficient_quota", "message": "You exceeded your quota."}
+            })
+            mock_client.post.return_value = mock_resp
+
+            res = await call_llm_api("sys", "user", response_json=True)
+            # Should return None and not call post more than once
+            assert res is None
+            assert mock_client.post.call_count == 1  # bail-out after first billing error
+    finally:
+        settings.openai_api_key = original_openai
+        settings.anthropic_api_key = original_anthropic
+
+
+@pytest.mark.anyio
+async def test_gap_analysis_prompt_enforces_required_fields() -> None:
+    """Verify the gap analysis prompt explicitly requires all output schema fields."""
+    from app.services.gap_analysis import GAP_ANALYSIS_PROMPT
+
+    # All output schema fields must be named in the prompt
+    for field in ("coverage_status", "risk_level", "reasoning", "source_citations", "confidence"):
+        assert field in GAP_ANALYSIS_PROMPT, f"Prompt missing required field: {field}"
+
+    # Prompt must enumerate the valid enumeration values
+    for value in ("fully_covered", "partially_covered", "not_covered"):
+        assert value in GAP_ANALYSIS_PROMPT, f"Prompt missing coverage value: {value}"
+    for level in ("high", "medium", "low"):
+        assert level in GAP_ANALYSIS_PROMPT, f"Prompt missing risk level: {level}"
+
+
+@pytest.mark.anyio
+async def test_pull_request_prompt_enforces_required_fields() -> None:
+    """Verify the PR generation prompt explicitly requires all output schema fields."""
+    from app.services.pull_request import POLICY_PR_PROMPT
+
+    for field in ("title", "proposed_amendment", "before_text", "after_text"):
+        assert field in POLICY_PR_PROMPT, f"PR prompt missing required field: {field}"
+    assert "json" in POLICY_PR_PROMPT.lower(), "PR prompt must enforce JSON output"

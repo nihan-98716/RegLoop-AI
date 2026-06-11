@@ -1,4 +1,18 @@
-"""Document ingestion routes."""
+"""Document ingestion router — Phase 3: PDF chunking & responsibility matrix parsing.
+
+This router handles two operations:
+  1. POST /ingestion  — Triggers extraction of PDF text chunks from regulation/policy documents
+                        and parses the CSV responsibility matrix into owner records.
+                        Idempotent: clears previous ingestion data before re-running.
+                        Transaction-safe: any parse failure triggers a full DB rollback.
+  2. GET  /ingestion  — Returns current ingestion status (chunks and responsibility owners).
+
+Error handling:
+  - 404 if workspace does not exist.
+  - 400 if the workspace is not ready (missing required document types).
+  - 422 if the responsibility matrix CSV is missing required columns.
+  - 500 with structured error detail if PDF parsing fails at runtime.
+"""
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import delete, select
@@ -74,9 +88,24 @@ async def run_ingestion(
 
         workspace.status = "ingested"
         await db.commit()
-    except Exception:
+    except HTTPException:
+        # Re-raise validation errors (e.g. missing CSV columns) without masking them
         await db.rollback()
         raise
+    except Exception as exc:
+        # Catch PDF parse failures, I/O errors, and any unexpected runtime errors.
+        # Always rollback to avoid leaving partial chunks in the database.
+        await db.rollback()
+        log.error(
+            "ingestion.failed",
+            workspace_id=workspace_id,
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ingestion failed during document processing: {type(exc).__name__}: {exc}",
+        ) from exc
 
     log.info(
         "ingestion.completed",

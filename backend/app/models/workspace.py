@@ -332,7 +332,16 @@ class GapAnalysis(Base):
 
 
 class PolicyPullRequest(Base):
-    """Reviewable AI-generated policy amendment."""
+    """Reviewable AI-generated policy amendment produced for each coverage gap.
+
+    Lifecycle (status machine):
+      pending → approved — human accepted the amendment as-is.
+      pending → rejected — human decided no change is needed or the amendment is wrong.
+      pending → modified — human edited the proposed text (stored in after_text).
+      pending → escalated — human flagged the gap for senior review outside this system.
+
+    Each status transition is recorded as a ReviewAction for full audit traceability.
+    """
 
     __tablename__ = "policy_pull_requests"
 
@@ -358,19 +367,21 @@ class PolicyPullRequest(Base):
         index=True,
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
-    gap_description: Mapped[str] = mapped_column(Text, nullable=False)
-    proposed_amendment: Mapped[str] = mapped_column(Text, nullable=False)
-    regulatory_citation: Mapped[str | None] = mapped_column(Text, nullable=True)
+    gap_description: Mapped[str] = mapped_column(Text, nullable=False)  # Human-readable gap summary
+    proposed_amendment: Mapped[str] = mapped_column(Text, nullable=False)  # Full policy text to be added/changed
+    regulatory_citation: Mapped[str | None] = mapped_column(Text, nullable=True)  # Source regulation reference
     suggested_owner_id: Mapped[str | None] = mapped_column(
         String(36),
         ForeignKey("responsibility_owners.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
+    # high | medium | low — propagated from the parent GapAnalysis
     risk_level: Mapped[str] = mapped_column(String(20), nullable=False)
+    # 0–100 integer — propagated from the parent GapAnalysis confidence score
     confidence: Mapped[int] = mapped_column(Integer, nullable=False)
-    before_text: Mapped[str] = mapped_column(Text, nullable=False)
-    after_text: Mapped[str] = mapped_column(Text, nullable=False)
+    before_text: Mapped[str] = mapped_column(Text, nullable=False)  # Existing policy excerpt (may be empty)
+    after_text: Mapped[str] = mapped_column(Text, nullable=False)   # Proposed replacement / addition
     # pending | approved | rejected | modified | escalated
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="pending")
     created_at: Mapped[datetime] = mapped_column(
@@ -401,7 +412,17 @@ class PolicyPullRequest(Base):
 
 
 class ReviewAction(Base):
-    """Human review action taken on a policy pull request."""
+    """Immutable record of a human review action taken on a PolicyPullRequest.
+
+    Allowed actions:
+      approve   — accept the AI-generated amendment with no changes.
+      reject    — decline the amendment (policy deemed sufficient or amendment incorrect).
+      modify    — accept with edits; modified_text must be provided and is applied to PR.after_text.
+      escalate  — flag for senior compliance officer review outside this system.
+
+    ReviewAction records are append-only; they are never updated after creation.
+    The latest action's effect is reflected on the parent PolicyPullRequest.status.
+    """
 
     __tablename__ = "review_actions"
 
@@ -416,9 +437,9 @@ class ReviewAction(Base):
     )
     # approve | reject | modify | escalate
     action: Mapped[str] = mapped_column(String(50), nullable=False)
-    reviewer_label: Mapped[str] = mapped_column(String(255), nullable=False)
-    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
-    modified_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reviewer_label: Mapped[str] = mapped_column(String(255), nullable=False)  # Free-text reviewer identifier
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)           # Optional reviewer rationale
+    modified_text: Mapped[str | None] = mapped_column(Text, nullable=True)     # Required when action == 'modify'
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now()
     )

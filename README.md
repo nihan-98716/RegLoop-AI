@@ -54,15 +54,18 @@ graph TD
 
 ---
 
-## AI Layer & Fallback Strategy
+## AI Layer, Prompt Engineering & Fallback Strategy
 
-To ensure that development remains cost-free, unit tests pass instantly without a network, and production environments never crash, the system implements a strict **automatic fallback pattern**:
+To ensure development remains cost-free, unit tests pass instantly without network access, and production never crashes due to LLM failures, the system implements a strict **automatic fallback pattern**:
 
-1. **Provider Check**: The backend evaluates `LLM_PROVIDER` (supporting `openai`, `anthropic`, and `gemini`) along with their respective API keys (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`).
-2. **LLM Path**: If credentials are active, calls are made asynchronously via `httpx` using standard Chat / Messages endpoints.
-3. **Multi-Provider Fallback (REQ_12)**: The system implements an extensible, multi-provider LLM fallback model. If the configured provider (e.g., OpenAI) fails or experiences rate limits (e.g., HTTP `429`), the unified `call_llm_api` function automatically cascades and attempts other available providers in priority order.
-4. **Local Fallback (REQ_03 - Semantic Policy Mapping)**: If all LLM calls fail or keys are absent, the server catches the failure, logs a warning, and executes a local **Vector Space Model (VSM) with TF-IDF and Cosine Similarity** to match obligations to policies. This ensures true semantic similarity scoring and alignment without requiring an external internet connection or heavy machine learning libraries.
-5. **Schema Safety**: Both LLM and fallback paths return structured responses validated against the same Pydantic schemas (e.g., [GapAnalysisOutput](file:///C:/Users/Public/Projects/RegLoop%20AI/backend/app/services/gap_analysis.py#L67-L88)), preventing UI format crashes.
+1. **Provider Check**: The backend evaluates `LLM_PROVIDER` (supporting `openai`, `anthropic`, `gemini`) plus their API keys (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`).
+2. **LLM Path**: When credentials are active, calls are made asynchronously via `httpx` using standard Chat/Messages endpoints.
+3. **Multi-Provider Fallback (REQ_12)**: If the configured provider fails (e.g., HTTP 429 or 500), `call_llm_api` automatically cascades to the next available provider in priority order: `openai → anthropic → gemini`.
+4. **Billing bail-out**: If the API returns an `insufficient_quota` or `billing_limit_exceeded` error, the service stops retrying immediately and falls back — preventing wasted timeouts.
+5. **Local Fallback (REQ_03)**: If all LLM calls fail, the server logs a warning and executes a local **TF-IDF + Cosine Similarity** engine for semantic policy mapping, and deterministic rule-based extractors for obligations and gap analysis.
+6. **Prompt Engineering**: Each LLM call uses a two-part prompt (system + user). System prompts define the expert role and enforce strict JSON output format. User prompts inject document context (chunks, excerpts, mapping rationale) and enumerate required JSON keys. See [`docs/ai-workflow.md`](docs/ai-workflow.md) for full prompt templates.
+7. **Output Validation**: All LLM responses are validated against strict Pydantic schemas before being persisted. Invalid or blank responses trigger an automatic fallback to the deterministic engine. See [`GapAnalysisOutput`](backend/app/services/gap_analysis.py), [`PolicyPrOutput`](backend/app/services/pull_request.py), [`ExtractedObligation`](backend/app/services/obligations.py).
+8. **Confidence Score Derivation**: In the deterministic fallback, confidence scores are computed from mandatory language density (base 72, +8 per strong verb: _must/shall/required_, +4 per medium verb: _ensure/maintain/report_), capped at 95 to signal model uncertainty. Gap analysis thresholds: ≥70 → fully covered, 40–69 → partially covered, <40 → not covered.
 
 ---
 
@@ -125,6 +128,30 @@ docker compose up --build
 
 ---
 
+## Security & Authentication
+
+> **Note:** This is a single-user prototype. The current implementation does not include user authentication, session management, or role-based access control.
+
+### Current Security Posture
+| Control | Status | Notes |
+|---------|--------|-------|
+| API Authentication | ❌ Not implemented | All endpoints are open (prototype scope) |
+| HTTPS / TLS | ✅ Via reverse proxy | Use nginx/Caddy with TLS in production |
+| File Upload Validation | ✅ Implemented | MIME type, extension, and size checks in `upload.py` |
+| SQL Injection | ✅ Protected | SQLAlchemy ORM with parameterised bindings throughout |
+| CSV Injection | ✅ Protected | `defusedcsv` used for all CSV parsing and export |
+| Secrets Management | ✅ Via `.env` | API keys never committed; loaded from environment only |
+| Input Validation | ✅ Pydantic | All request bodies validated via strict Pydantic schemas |
+
+### Production Hardening Checklist
+- [ ] Add OAuth2 / API key authentication middleware (e.g., FastAPI `Depends` + JWT)
+- [ ] Set `CORS_ORIGINS` to specific domains (not `*`) in `main.py`
+- [ ] Enable HTTPS via a reverse proxy (nginx or Caddy)
+- [ ] Rotate the `OPENAI_API_KEY` and set spending limits in the OpenAI dashboard
+- [ ] Run the backend behind a rate-limiting proxy to prevent abuse
+
+---
+
 ## Automated Testing & Quality Checks
 
 ### Run Backend Tests (Pytest)
@@ -162,7 +189,7 @@ All technical specifications, design diagrams, and setup instructions are locate
 
 ---
 
-## 🎥 Demo Video & Sample Data (REQ_14)
+## 🎥 Demo Video & Sample Data 
 
 * **Demo Video Link**: [RegLoop AI Walkthrough Video](https://youtu.be/demo-video-placeholder-regloop) - A 3-5 minute demonstration showing the complete end-to-end workflow from document upload, obligation extraction, mapping, gap analysis, pull request review, and compliance package export.
 * **Sample Data Folder**: Real-world sample files are included in the [`samples/`](samples/) folder to demonstrate and validate the system:

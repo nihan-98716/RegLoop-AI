@@ -1,4 +1,16 @@
-"""Phase 7: Policy Pull Requests router."""
+"""Policy Pull Requests router — Phase 7: Human-in-the-Loop Review Workflow.
+
+This router implements the full policy pull request lifecycle:
+  1. POST /run         — AI generates policy amendments for every coverage gap.
+  2. GET  /            — List all PRs for a workspace with optional status/owner/risk filters.
+  3. POST /{id}/review — Human reviewer approves, rejects, modifies, or escalates a PR.
+                         This is the human-in-the-loop action execution endpoint.
+
+Status machine:
+  pending → approved | rejected | modified | escalated
+
+Every review action is persisted to ReviewAction for full audit traceability.
+"""
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import delete, select
@@ -159,6 +171,11 @@ async def list_policy_pull_requests(
 
     result = await db.execute(query)
     return list(result.scalars().all())
+
+
+# ---------------------------------------------------------------------------
+# Human-in-the-loop review: action execution endpoint (REQ_08)
+# ---------------------------------------------------------------------------
 
 
 @router.post(
